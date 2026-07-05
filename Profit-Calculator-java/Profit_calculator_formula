@@ -1,0 +1,1114 @@
+# Profit Calculator 계산 공식 요약본
+
+> 기준: 현재 Java 구현  
+> 목적: 기존 PRD의 계산식을 팀원이 빠르게 이해할 수 있도록 정리
+
+## 0. 전체 흐름
+
+```text
+공간 입력
+→ 실제 재배면적
+→ 월 생산량
+→ 판매 가능량
+→ 예상매출
+→ 전기·수도·재료·인건·유통비
+→ 운영비
+→ 영업이익
+→ 수익 배분
+```
+
+핵심식:
+
+\[
+	ext{영업이익}
+=
+	ext{예상매출}
+-
+	ext{감가상각 전 운영비}
+\]
+
+\[
+	ext{감가상각 후 손익}
+=
+	ext{예상매출}
+-
+	ext{감가상각 후 총비용}
+\]
+
+---
+
+## 1. 공간 계산
+
+### 1.1 사용 가능 바닥면적
+
+\[
+A_{usable}
+=
+A_{total}
+	imes
+R_{cultivable}
+\]
+
+### 1.2 랙 단수를 반영한 총 재배면적
+
+\[
+A_{cultivation}
+=
+A_{usable}
+	imes
+N_{rack}
+\]
+
+따라서 한 번에 쓰면:
+
+\[
+oxed{
+A_{cultivation}
+=
+A_{total}
+	imes
+R_{cultivable}
+	imes
+N_{rack}
+}
+\]
+
+### 1.3 공간 체적
+
+\[
+V
+=
+A_{total}
+	imes
+H_{ceiling}
+\]
+
+---
+
+## 2. 생산량 계산
+
+### 2.1 월 총생산량
+
+\[
+Q_{gross}
+=
+A_{cultivation}
+	imes
+Y_{m^2,cycle}
+	imes
+N_{cycle,month}
+\]
+
+### 2.2 판매 가능 생산량
+
+\[
+Q_{marketable}
+=
+Q_{gross}
+	imes
+R_{marketable}
+\]
+
+### 2.3 실제 예상 판매량
+
+\[
+Q_{sales}
+=
+Q_{marketable}
+	imes
+R_{sales}
+\]
+
+한 번에 쓰면:
+
+\[
+oxed{
+Q_{sales}
+=
+A_{cultivation}
+	imes
+Y_{m^2,cycle}
+	imes
+N_{cycle,month}
+	imes
+R_{marketable}
+	imes
+R_{sales}
+}
+\]
+
+---
+
+## 3. 매출 계산
+
+패키지 판매라면 단위가격은:
+
+\[
+P_{unit}
+=
+rac{P_{package}}
+{Q_{package}}
+\]
+
+개별 단위 판매라면:
+
+\[
+P_{unit}
+=
+P_{csv}
+\]
+
+월 예상매출:
+
+\[
+oxed{
+Revenue
+=
+Q_{sales}
+	imes
+P_{unit}
+}
+\]
+
+---
+
+## 4. 조명 전력 계산
+
+### 4.1 필요한 LED 전력
+
+\[
+P_{light}
+=
+rac{
+PPFD_{target}
+	imes
+A_{cultivation}
+}{
+\eta_{LED}
+}
+\]
+
+### 4.2 월 조명 전력량
+
+\[
+E_{light}
+=
+rac{
+P_{light}
+	imes
+h_{light/day}
+	imes
+D_{month}
+}{1000}
+\]
+
+### 4.3 조명 발열
+
+\[
+Q_{light,heat}
+=
+P_{light}
+	imes
+R_{heat}
+\]
+
+---
+
+## 5. 냉난방 계산
+
+### 5.1 온도차
+
+\[
+\Delta T
+=
+\left|
+T_{target}
+-
+T_{outdoor}
+
+ight|
+\]
+
+### 5.2 외피 열부하
+
+\[
+Q_{envelope}
+=
+K_{envelope}
+	imes
+V
+	imes
+\Delta T
+\]
+
+### 5.3 환기 열부하
+
+\[
+Q_{ventilation}
+=
+rac{
+
+ho_{air}
+	imes
+c_{p,air}
+	imes
+V
+	imes
+ACH
+	imes
+\Delta T
+}{3600}
+\]
+
+### 5.4 기본 열부하
+
+\[
+Q_{base}
+=
+Q_{envelope}
++
+Q_{ventilation}
+\]
+
+### 5.5 난방
+
+난방 조건:
+
+\[
+T_{target} > T_{outdoor}
+\]
+
+조명 점등 중 난방부하:
+
+\[
+Q_{heating,lit}
+=
+\max
+\left(
+Q_{base}
+-
+Q_{light,heat},
+0
+
+ight)
+\]
+
+월 난방 전력량:
+
+\[
+E_{heating}
+=
+rac{
+Q_{heating,lit}\,h_{lit}
++
+Q_{base}\,h_{dark}
+}{
+COP_{heating}
+	imes
+1000
+}
+\]
+
+### 5.6 냉방
+
+냉방 조건:
+
+\[
+T_{target} < T_{outdoor}
+\]
+
+조명 점등 중 냉방부하:
+
+\[
+Q_{cooling,lit}
+=
+Q_{base}
++
+Q_{light,heat}
+\]
+
+월 냉방 전력량:
+
+\[
+E_{cooling}
+=
+rac{
+Q_{cooling,lit}\,h_{lit}
++
+Q_{base}\,h_{dark}
+}{
+COP_{cooling}
+	imes
+1000
+}
+\]
+
+총 온도제어 전력량:
+
+\[
+E_{temperature}
+=
+E_{heating}
++
+E_{cooling}
+\]
+
+---
+
+## 6. 습도·가습·제습 계산
+
+### 6.1 포화수증기압
+
+\[
+P_{sat}
+=
+610.94
+	imes
+\exp
+\left(
+rac{17.625T}
+{T+243.04}
+
+ight)
+\]
+
+### 6.2 실제 수증기압
+
+\[
+P_v
+=
+RH
+	imes
+P_{sat}
+\]
+
+> 상대습도 55%는 계산에서 `0.55`로 사용
+
+### 6.3 습도비
+
+\[
+w
+=
+0.622
+	imes
+rac{P_v}
+{P_{atm}-P_v}
+\]
+
+### 6.4 환기로 교환되는 수분량
+
+\[
+M_{exchange}
+=
+\left|
+w_{target}
+-
+w_{outdoor}
+
+ight|
+	imes
+M_{dry\,air}
+\]
+
+### 6.5 작물 증산량
+
+\[
+M_{transpiration}
+=
+A_{cultivation}
+	imes
+L_{transpiration/day}
+	imes
+D_{month}
+\]
+
+### 6.6 가습
+
+\[
+M_{humidification}
+=
+M_{exchange}
+\quad
+(w_{target}>w_{outdoor})
+\]
+
+\[
+E_{humidification}
+=
+M_{humidification}
+	imes
+SEC_{humidifier}
+\]
+
+### 6.7 제습
+
+\[
+M_{dehumidification}
+=
+M_{transpiration}
++
+M_{exchange}
+\quad
+(w_{target}<w_{outdoor})
+\]
+
+\[
+E_{dehumidification}
+=
+M_{dehumidification}
+	imes
+SEC_{dehumidifier}
+\]
+
+총 습도제어 전력량:
+
+\[
+E_{humidity}
+=
+E_{humidification}
++
+E_{dehumidification}
+\]
+
+---
+
+## 7. 용수비 계산
+
+### 7.1 관수량
+
+\[
+W_{irrigation,L}
+=
+A_{cultivation}
+	imes
+W_{crop/day}
+	imes
+D_{crop\,month}
+\]
+
+\[
+W_{irrigation,m^3}
+=
+rac{W_{irrigation,L}}{1000}
+\]
+
+### 7.2 월평균 청소수량
+
+\[
+W_{cleaning,m^3}
+=
+rac{
+A_{total}
+	imes
+W_{cleaning/event}
+}{
+N_{cleaning\,interval}
+	imes
+1000
+}
+\]
+
+### 7.3 총 용수량
+
+\[
+W_{total}
+=
+W_{irrigation}
++
+W_{humidification}
++
+W_{cleaning}
+\]
+
+### 7.4 수도비
+
+\[
+oxed{
+C_{water}
+=
+W_{total}
+	imes
+Rate_{water}
+}
+\]
+
+---
+
+## 8. 재료비 계산
+
+면적·회전 기준:
+
+\[
+Q_{material}
+=
+A_{cultivation}
+	imes
+N_{cycle,month}
+	imes
+Q_{basis}
+\]
+
+생산량 기준:
+
+\[
+Q_{material}
+=
+Q_{sales}
+	imes
+Q_{basis}
+\]
+
+월 고정 기준:
+
+\[
+Q_{material}
+=
+Q_{fixed}
+\]
+
+재료 항목별 비용:
+
+\[
+oxed{
+C_{material,item}
+=
+Q_{material}
+	imes
+P_{material}
+	imes
+(1+R_{loss})
+}
+\]
+
+---
+
+## 9. 포장비 계산
+
+필요 포장 수:
+
+\[
+N_{package}
+=
+\left\lceil
+rac{Q_{sales}}
+{Q_{package}}
+
+ight
+ceil
+\]
+
+포장비:
+
+\[
+C_{package}
+=
+N_{package}
+	imes
+P_{package}
+\]
+
+총 재료비:
+
+\[
+C_{materials,total}
+=
+C_{planting}
++
+C_{nutrient}
++
+C_{medium}
++
+C_{consumable}
++
+C_{package}
+\]
+
+---
+
+## 10. 유통비 계산
+
+지역 유통비:
+
+\[
+C_{distribution}
+=
+Revenue
+	imes
+R_{distribution}
+\]
+
+플랫폼 수수료:
+
+\[
+C_{platform}
+=
+Revenue
+	imes
+R_{platform}
+\]
+
+총 유통비:
+
+\[
+oxed{
+C_{distribution,total}
+=
+C_{distribution}
++
+C_{platform}
+}
+\]
+
+---
+
+## 11. 인건비 계산
+
+월평균 작업시간:
+
+\[
+H_{labor,month}
+=
+H_{labor,week}
+	imes
+rac{52}{12}
+\]
+
+월 인건비:
+
+\[
+oxed{
+C_{labor}
+=
+H_{labor,month}
+	imes
+Wage_{hour}
+	imes
+R_{oncost}
+}
+\]
+
+---
+
+## 12. 감가상각비 계산
+
+기준 월 감가상각비:
+
+\[
+D_{reference}
+=
+rac{
+C_{equipment}
+}{
+Life_{years}
+	imes
+12
+}
+\]
+
+현재 면적 기준 감가상각비:
+
+\[
+oxed{
+D_{month}
+=
+D_{reference}
+	imes
+rac{
+A_{cultivation}
+}{
+A_{reference}
+}
+}
+\]
+
+---
+
+## 13. 운영비 계산
+
+감가상각 전 운영비:
+
+\[
+oxed{
+OPEX
+=
+C_{electricity}
++
+C_{water}
++
+C_{labor}
++
+C_{materials,total}
++
+C_{distribution,total}
+}
+\]
+
+감가상각 후 총비용:
+
+\[
+oxed{
+TotalCost
+=
+OPEX
++
+D_{month}
+}
+\]
+
+현재 구현:
+
+\[
+C_{maintenance}=0
+\]
+
+---
+
+## 14. 이익 계산
+
+영업이익:
+
+\[
+oxed{
+OperatingProfit
+=
+Revenue
+-
+OPEX
+}
+\]
+
+감가상각 후 손익:
+
+\[
+oxed{
+Profit_{after\,depreciation}
+=
+Revenue
+-
+TotalCost
+}
+\]
+
+> 현재 구현의 `expectedProfit`은 감가상각 전 영업이익입니다.
+
+---
+
+## 15. 수익 배분
+
+이익이 양수일 때:
+
+\[
+Share_{owner}
+=
+OperatingProfit
+	imes
+R_{owner}
+\]
+
+\[
+Share_{HQ}
+=
+OperatingProfit
+	imes
+R_{HQ}
+\]
+
+조건:
+
+\[
+R_{owner}+R_{HQ}=1
+\]
+
+이익이 0 이하일 때:
+
+\[
+Share_{owner}=0
+\]
+
+\[
+Share_{HQ}=0
+\]
+
+\[
+UndistributedLoss
+=
+OperatingProfit
+\]
+
+---
+
+## 16. 전기요금 계산
+
+월 총 전력량:
+
+\[
+E_{month}
+=
+E_{temperature}
++
+E_{light}
++
+E_{humidity}
++
+E_{auxiliary}
+\]
+
+월 사용량 요금:
+
+\[
+C_{energy,month}
+=
+E_{month}
+	imes
+Rate_{season}
+\]
+
+연간 사용량 요금:
+
+\[
+C_{energy,year}
+=
+\sum_{m=1}^{12}
+C_{energy,month,m}
+\]
+
+월평균 사용량 요금:
+
+\[
+C_{energy,average}
+=
+rac{
+C_{energy,year}
+}{12}
+\]
+
+예상 계약전력:
+
+\[
+P_{contract}
+=
+P_{peak}
+	imes
+R_{safety}
+\]
+
+월 기본요금:
+
+\[
+C_{basic}
+=
+P_{contract}
+	imes
+Rate_{basic}
+\]
+
+최종 월 전기비:
+
+\[
+oxed{
+C_{electricity}
+=
+C_{energy,average}
++
+C_{basic}
+}
+\]
+
+---
+
+## 17. 최종 핵심 공식 5개
+
+### ① 총 재배면적
+
+\[
+oxed{
+A_{cultivation}
+=
+A_{total}
+	imes
+R_{cultivable}
+	imes
+N_{rack}
+}
+\]
+
+### ② 월 총생산량
+
+\[
+oxed{
+Q_{gross}
+=
+A_{cultivation}
+	imes
+Y_{m^2,cycle}
+	imes
+N_{cycle,month}
+}
+\]
+
+### ③ 월 예상매출
+
+\[
+oxed{
+Revenue
+=
+Q_{gross}
+	imes
+R_{marketable}
+	imes
+R_{sales}
+	imes
+P_{unit}
+}
+\]
+
+### ④ 감가상각 전 운영비
+
+\[
+oxed{
+OPEX
+=
+C_{electricity}
++
+C_{water}
++
+C_{labor}
++
+C_{material}
++
+C_{distribution}
+}
+\]
+
+### ⑤ 영업이익
+
+\[
+oxed{
+OperatingProfit
+=
+Revenue
+-
+OPEX
+}
+\]
+
+---
+
+## 18. 상추 예제
+
+입력:
+
+```text
+전체 면적 = 20 m²
+재배 가능 비율 = 0.5
+랙 단수 = 3
+면적당 회전 생산량 = 1.5 kg/m²/cycle
+월 회전수 = 2
+상품화율 = 0.9
+판매율 = 0.8
+판매단가 = 7,000원/kg
+```
+
+재배면적:
+
+\[
+30
+=
+20
+	imes
+0.5
+	imes
+3
+\]
+
+총생산량:
+
+\[
+90
+=
+30
+	imes
+1.5
+	imes
+2
+\]
+
+판매 가능 생산량:
+
+\[
+81
+=
+90
+	imes
+0.9
+\]
+
+예상 판매량:
+
+\[
+64.8
+=
+81
+	imes
+0.8
+\]
+
+예상매출:
+
+\[
+453{,}600
+=
+64.8
+	imes
+7{,}000
+\]
+
+감가상각 전 운영비:
+
+\[
+854{,}353.465944
+=
+351{,}755.520298
++
+7{,}297.945646
++
+429{,}312
++
+52{,}380
++
+13{,}608
+\]
+
+영업이익:
+
+\[
+-400{,}753.465944
+=
+453{,}600
+-
+854{,}353.465944
+\]
+
+감가상각 후 손익:
+
+\[
+-484{,}086.799277
+=
+453{,}600
+-
+937{,}686.799277
+\]
+
+---
+
+## 19. 현재 구현에 없는 계산
+
+- 공실률 반영
+- 임대료 차감
+- 공실 기간 반영
+- 손익분기월
+- 유지보수비
+- 적자 발생 시 손실 분담
+- 농부 또는 운영자 배분
+- 세금
+- 금융비용
