@@ -1,0 +1,4 @@
+climate_season,months_count,outdoor_temperature_c,outdoor_relative_humidity,source_id,data_status,reference_date,remarks
+WINTER,3,5.0,0.55,BUSAN_SEASONAL_CONDITIONS_01,MVP_ESTIMATE,2026-07-04,Conservative MVP winter climate scenario for Busan
+SUMMER,3,27.0,0.75,BUSAN_SEASONAL_CONDITIONS_01,MVP_ESTIMATE,2026-07-04,Conservative MVP summer climate scenario for Busan
+SHOULDER,6,17.0,0.65,BUSAN_SEASONAL_CONDITIONS_01,MVP_ESTIMATE,2026-07-04,Conservative MVP shoulder-season climate scenario for Busan

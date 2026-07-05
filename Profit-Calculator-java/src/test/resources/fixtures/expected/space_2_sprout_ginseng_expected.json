@@ -1,0 +1,107 @@
+{
+  "success": true,
+  "message": "공실 수익성 계산이 완료되었습니다.",
+  "data": {
+    "predictionId": null,
+    "spaceId": 2,
+    "cropCode": "SPROUT_GINSENG",
+    "cropName": "새싹삼",
+    "cropType": "새싹삼",
+    "calculationPeriod": "AVERAGE_MONTHLY_FROM_ANNUAL_SCENARIO",
+    "spaceVolumeM3": 113.4,
+    "usableFloorAreaM2": 21,
+    "cultivationAreaM2": 63,
+    "production": {
+      "grossQuantity": 7560,
+      "marketableQuantity": 6426,
+      "expectedSalesQuantity": 4819.5,
+      "quantityUnit": "root",
+      "unitPriceKrw": 1200
+    },
+    "grossYieldKg": null,
+    "expectedYieldKg": null,
+    "expectedSalesKg": null,
+    "expectedRevenue": 5783400,
+    "costBreakdown": {
+      "electricityCost": 389626.56184,
+      "waterCost": 7866.292186,
+      "materialCost": 4056910,
+      "laborCost": 429312,
+      "distributionCost": 173502,
+      "maintenanceCost": 0
+    },
+    "operatingCostBreakdown": {
+      "energy": {
+        "seasonal": {
+          "winterMonthlyKwh": 2589.007615,
+          "summerMonthlyKwh": 2750.11282,
+          "shoulderMonthlyKwh": 2312.458821
+        },
+        "temperatureControlKwh": 187.044271,
+        "lightingKwh": 993.611111,
+        "humidityControlKwh": 1118.729137,
+        "auxiliaryKwh": 191.625,
+        "annualElectricityKwh": 29892.114227,
+        "averageMonthlyElectricityKwh": 2491.009519,
+        "electricityCost": 389626.56184,
+        "lightingPowerW": 2333.333333,
+        "monthlyBasicCharge": 24349.796014,
+        "estimatedContractPowerKw": 3.952889
+      },
+      "water": {
+        "cropIrrigationWaterM3": 2.268,
+        "humidificationWaterM3": 0.199514,
+        "auxiliaryCleaningWaterM3": 0.07,
+        "totalWaterM3": 2.537514,
+        "waterCost": 7866.292186
+      },
+      "labor": {
+        "weeklyHoursPerSite": 8,
+        "monthlyHours": 34.666667,
+        "hourlyWage": 10320,
+        "laborOncostMultiplier": 1.2,
+        "laborCost": 429312
+      },
+      "materials": {
+        "plantingMaterialCost": 3780000,
+        "nutrientCost": 7560,
+        "growingMediumCost": 18900,
+        "consumableCost": 9450,
+        "packagingCost": 241000,
+        "requiredPackages": 482,
+        "totalMaterialCost": 4056910
+      },
+      "distribution": {
+        "distributionRate": 0.03,
+        "platformFeeRate": 0,
+        "localDistributionCost": 173502,
+        "platformFeeCost": 0,
+        "distributionCost": 173502
+      },
+      "operatingCostBeforeDepreciation": 5057216.854027,
+      "depreciation": {
+        "referenceEquipmentCost": 5000000,
+        "referenceAreaM2": 30,
+        "lifetimeYears": 5,
+        "monthlyDepreciationCost": 175000
+      },
+      "totalExpectedCostAfterDepreciation": 5232216.854027
+    },
+    "expectedCost": 5057216.854027,
+    "operatingCostBeforeDepreciation": 5057216.854027,
+    "depreciationCost": 175000,
+    "totalExpectedCostAfterDepreciation": 5232216.854027,
+    "expectedProfit": 726183.145973,
+    "operatingProfitBeforeDepreciation": 726183.145973,
+    "projectedProfitAfterDepreciation": 551183.145973,
+    "profitDistribution": {
+      "ownerShareRate": 0.4,
+      "ownerShareAmount": 290473.258389,
+      "headquartersShareRate": 0.6,
+      "headquartersShareAmount": 435709.887584,
+      "undistributedLoss": 0
+    },
+    "breakEvenMonth": null,
+    "summary": "새싹삼 재배 기준 월 공실 수익성 계산 결과입니다."
+  }
+}

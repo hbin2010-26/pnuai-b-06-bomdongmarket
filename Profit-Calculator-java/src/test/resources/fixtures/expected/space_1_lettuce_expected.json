@@ -1,0 +1,107 @@
+{
+  "success": true,
+  "message": "공실 수익성 계산이 완료되었습니다.",
+  "data": {
+    "predictionId": null,
+    "spaceId": 1,
+    "cropCode": "LETTUCE",
+    "cropName": "상추",
+    "cropType": "상추",
+    "calculationPeriod": "AVERAGE_MONTHLY_FROM_ANNUAL_SCENARIO",
+    "spaceVolumeM3": 54,
+    "usableFloorAreaM2": 10,
+    "cultivationAreaM2": 30,
+    "production": {
+      "grossQuantity": 90,
+      "marketableQuantity": 81,
+      "expectedSalesQuantity": 64.8,
+      "quantityUnit": "kg",
+      "unitPriceKrw": 7000
+    },
+    "grossYieldKg": 90,
+    "expectedYieldKg": 81,
+    "expectedSalesKg": 64.8,
+    "expectedRevenue": 453600,
+    "costBreakdown": {
+      "electricityCost": 351755.520298,
+      "waterCost": 7297.945646,
+      "materialCost": 52380,
+      "laborCost": 429312,
+      "distributionCost": 13608,
+      "maintenanceCost": 0
+    },
+    "operatingCostBreakdown": {
+      "energy": {
+        "seasonal": {
+          "winterMonthlyKwh": 2216.27512,
+          "summerMonthlyKwh": 2579.107106,
+          "shoulderMonthlyKwh": 2112.933398
+        },
+        "temperatureControlKwh": 124.902598,
+        "lightingKwh": 973.333333,
+        "humidityControlKwh": 1065.826324,
+        "auxiliaryKwh": 91.25,
+        "annualElectricityKwh": 27063.747065,
+        "averageMonthlyElectricityKwh": 2255.312255,
+        "electricityCost": 351755.520298,
+        "lightingPowerW": 2000,
+        "monthlyBasicCharge": 20613.641787,
+        "estimatedContractPowerKw": 3.34637
+      },
+      "water": {
+        "cropIrrigationWaterM3": 2.25,
+        "humidificationWaterM3": 0.070843,
+        "auxiliaryCleaningWaterM3": 0.033333,
+        "totalWaterM3": 2.354176,
+        "waterCost": 7297.945646
+      },
+      "labor": {
+        "weeklyHoursPerSite": 8,
+        "monthlyHours": 34.666667,
+        "hourlyWage": 10320,
+        "laborOncostMultiplier": 1.2,
+        "laborCost": 429312
+      },
+      "materials": {
+        "plantingMaterialCost": 6750,
+        "nutrientCost": 2700,
+        "growingMediumCost": 1800,
+        "consumableCost": 2250,
+        "packagingCost": 38880,
+        "requiredPackages": 324,
+        "totalMaterialCost": 52380
+      },
+      "distribution": {
+        "distributionRate": 0.03,
+        "platformFeeRate": 0,
+        "localDistributionCost": 13608,
+        "platformFeeCost": 0,
+        "distributionCost": 13608
+      },
+      "operatingCostBeforeDepreciation": 854353.465944,
+      "depreciation": {
+        "referenceEquipmentCost": 5000000,
+        "referenceAreaM2": 30,
+        "lifetimeYears": 5,
+        "monthlyDepreciationCost": 83333.333333
+      },
+      "totalExpectedCostAfterDepreciation": 937686.799277
+    },
+    "expectedCost": 854353.465944,
+    "operatingCostBeforeDepreciation": 854353.465944,
+    "depreciationCost": 83333.333333,
+    "totalExpectedCostAfterDepreciation": 937686.799277,
+    "expectedProfit": -400753.465944,
+    "operatingProfitBeforeDepreciation": -400753.465944,
+    "projectedProfitAfterDepreciation": -484086.799277,
+    "profitDistribution": {
+      "ownerShareRate": 0.4,
+      "ownerShareAmount": 0,
+      "headquartersShareRate": 0.6,
+      "headquartersShareAmount": 0,
+      "undistributedLoss": -400753.465944
+    },
+    "breakEvenMonth": null,
+    "summary": "상추 재배 기준 월 공실 수익성 계산 결과입니다."
+  }
+}

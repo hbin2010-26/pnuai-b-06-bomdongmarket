@@ -1,0 +1,4 @@
+space_id,space_name,total_area_m2,cultivable_ratio,rack_layers,case_type,market_rent_reference_krw,source_id,data_status,remarks
+1,부산대 인근 소형 공실,20,0.5,3,CASE_01_SMALL,800000,SPACE_PNU_SMALL_01,MVP_ESTIMATE,Phase1 regression area retained; generalized vacant-space scenario
+2,부산대 인근 중형 공실,42,0.5,3,CASE_02_MEDIUM,1500000,SPACE_PNU_MEDIUM_01,MVP_ESTIMATE,Generalized Busan National University area vacancy scenario
+3,부산대 인근 대형 공실,85,0.55,4,CASE_03_LARGE,2800000,SPACE_PNU_LARGE_01,MVP_ESTIMATE,Generalized Busan National University area vacancy scenario

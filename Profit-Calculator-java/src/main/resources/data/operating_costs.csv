@@ -1,0 +1,4 @@
+crop_code,electricity_cost_per_m2_cycle,water_cost_per_m2_cycle,material_cost_per_m2_cycle,fixed_maintenance_cost_month,source_id,assumption_level,assumption_note
+LETTUCE,120,30,250,50000,COST_LETTUCE_01,ESTIMATE,1차 테스트 fixture를 유지한 단순 단가입니다.
+BASIL,180,40,400,60000,COST_BASIL_01,TODO_ESTIMATE,광량과 공조 요구가 상추보다 높다고 본 MVP 추정 단가입니다.
+SPROUT_GINSENG,220,40,1200,90000,COST_SPROUT_GINSENG_01,MVP_ESTIMATE,새싹삼 장기/묘삼 부담을 반영한 legacy MVP 추정 단가입니다.

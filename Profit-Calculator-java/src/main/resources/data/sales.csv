@@ -1,0 +1,12 @@
+sales_id,crop_code,sales_channel,price_basis,price_krw,package_quantity,sales_unit,sales_rate,platform_fee_rate,distribution_cost_rate,reference_region,reference_period,source_id,data_status,remarks
+SALES_LETTUCE_LOCAL,LETTUCE,LOCAL_DIRECT,PER_KG,7000,1,kg,0.8,0,0.03,Korea,2026 MVP,SALES_LETTUCE_01,MVP_ESTIMATE,KAMIS lookup path confirmed; value remains MVP estimate
+SALES_BASIL_LOCAL,BASIL,LOCAL_DIRECT,PER_KG,20000,1,kg,0.7,0,0.03,Korea,2026 MVP,SALES_BASIL_01,MVP_ESTIMATE,Herb retail/restaurant local-direct MVP estimate
+SALES_SPROUT_GINSENG_LOCAL,SPROUT_GINSENG,LOCAL_DIRECT,PER_ROOT,1200,1,root,0.75,0,0.03,Korea,2026 MVP,SALES_SPROUT_GINSENG_01,MVP_ESTIMATE,Sprout ginseng root price; ordinary ginseng price not used
+SALES_APPLE_MINT_LOCAL,APPLE_MINT,LOCAL_DIRECT,PER_KG,25000,1,kg,0.7,0,0.03,Korea,2026 MVP,SALES_APPLE_MINT_01,MVP_ESTIMATE,Market observation needed; MVP herb unit price
+SALES_ROSEMARY_LOCAL,ROSEMARY,LOCAL_DIRECT,PER_KG,30000,1,kg,0.65,0,0.03,Korea,2026 MVP,SALES_ROSEMARY_01,MVP_ESTIMATE,Market observation needed; MVP herb unit price
+SALES_RUCOLA_LOCAL,RUCOLA,LOCAL_DIRECT,PER_KG,12000,1,kg,0.75,0,0.03,Korea,2026 MVP,SALES_RUCOLA_01,MVP_ESTIMATE,Arugula/rucola MVP local-direct price
+SALES_DILL_LOCAL,DILL,LOCAL_DIRECT,PER_KG,28000,1,kg,0.65,0,0.03,Korea,2026 MVP,SALES_DILL_01,MVP_ESTIMATE,Market observation needed; MVP herb unit price
+SALES_EDIBLE_FLOWERS_LOCAL,EDIBLE_FLOWERS,LOCAL_DIRECT,PER_PACKAGE,6000,20,ea,0.6,0,0.03,Korea,2026 MVP,SALES_EDIBLE_FLOWERS_01,MVP_ESTIMATE,Representative edible flower pack of 20 pieces
+SALES_CORIANDER_LOCAL,CORIANDER,LOCAL_DIRECT,PER_KG,15000,1,kg,0.7,0,0.03,Korea,2026 MVP,SALES_CORIANDER_01,MVP_ESTIMATE,Coriander/cilantro MVP local-direct price
+SALES_THYME_LOCAL,THYME,LOCAL_DIRECT,PER_KG,35000,1,kg,0.6,0,0.03,Korea,2026 MVP,SALES_THYME_01,MVP_ESTIMATE,Market observation needed; MVP herb unit price
+SALES_LEMON_BALM_LOCAL,LEMON_BALM,LOCAL_DIRECT,PER_KG,28000,1,kg,0.65,0,0.03,Korea,2026 MVP,SALES_LEMON_BALM_01,MVP_ESTIMATE,Market observation needed; MVP herb unit price

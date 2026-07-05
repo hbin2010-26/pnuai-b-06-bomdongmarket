@@ -1,0 +1,107 @@
+{
+  "success": true,
+  "message": "공실 수익성 계산이 완료되었습니다.",
+  "data": {
+    "predictionId": null,
+    "spaceId": 1,
+    "cropCode": "BASIL",
+    "cropName": "바질",
+    "cropType": "바질",
+    "calculationPeriod": "AVERAGE_MONTHLY_FROM_ANNUAL_SCENARIO",
+    "spaceVolumeM3": 54,
+    "usableFloorAreaM2": 10,
+    "cultivationAreaM2": 30,
+    "production": {
+      "grossQuantity": 43.2,
+      "marketableQuantity": 36.72,
+      "expectedSalesQuantity": 25.704,
+      "quantityUnit": "kg",
+      "unitPriceKrw": 20000
+    },
+    "grossYieldKg": 43.2,
+    "expectedYieldKg": 36.72,
+    "expectedSalesKg": 25.704,
+    "expectedRevenue": 514080,
+    "costBreakdown": {
+      "electricityCost": 452932.601146,
+      "waterCost": 8799.078769,
+      "materialCost": 60840,
+      "laborCost": 429312,
+      "distributionCost": 15422.4,
+      "maintenanceCost": 0
+    },
+    "operatingCostBreakdown": {
+      "energy": {
+        "seasonal": {
+          "winterMonthlyKwh": 2857.300263,
+          "summerMonthlyKwh": 3229.840163,
+          "shoulderMonthlyKwh": 2764.642293
+        },
+        "temperatureControlKwh": 155.772827,
+        "lightingKwh": 1351.851852,
+        "humidityControlKwh": 1305.231574,
+        "auxiliaryKwh": 91.25,
+        "annualElectricityKwh": 34849.275033,
+        "averageMonthlyElectricityKwh": 2904.106253,
+        "electricityCost": 452932.601146,
+        "lightingPowerW": 2777.777778,
+        "monthlyBasicCharge": 27764.195687,
+        "estimatedContractPowerKw": 4.507175
+      },
+      "water": {
+        "cropIrrigationWaterM3": 2.7,
+        "humidificationWaterM3": 0.105079,
+        "auxiliaryCleaningWaterM3": 0.033333,
+        "totalWaterM3": 2.838413,
+        "waterCost": 8799.078769
+      },
+      "labor": {
+        "weeklyHoursPerSite": 8,
+        "monthlyHours": 34.666667,
+        "hourlyWage": 10320,
+        "laborOncostMultiplier": 1.2,
+        "laborCost": 429312
+      },
+      "materials": {
+        "plantingMaterialCost": 8640,
+        "nutrientCost": 2880,
+        "growingMediumCost": 1440,
+        "consumableCost": 1440,
+        "packagingCost": 46440,
+        "requiredPackages": 258,
+        "totalMaterialCost": 60840
+      },
+      "distribution": {
+        "distributionRate": 0.03,
+        "platformFeeRate": 0,
+        "localDistributionCost": 15422.4,
+        "platformFeeCost": 0,
+        "distributionCost": 15422.4
+      },
+      "operatingCostBeforeDepreciation": 967306.079915,
+      "depreciation": {
+        "referenceEquipmentCost": 5000000,
+        "referenceAreaM2": 30,
+        "lifetimeYears": 5,
+        "monthlyDepreciationCost": 83333.333333
+      },
+      "totalExpectedCostAfterDepreciation": 1050639.413249
+    },
+    "expectedCost": 967306.079915,
+    "operatingCostBeforeDepreciation": 967306.079915,
+    "depreciationCost": 83333.333333,
+    "totalExpectedCostAfterDepreciation": 1050639.413249,
+    "expectedProfit": -453226.079915,
+    "operatingProfitBeforeDepreciation": -453226.079915,
+    "projectedProfitAfterDepreciation": -536559.413249,
+    "profitDistribution": {
+      "ownerShareRate": 0.4,
+      "ownerShareAmount": 0,
+      "headquartersShareRate": 0.6,
+      "headquartersShareAmount": 0,
+      "undistributedLoss": -453226.079915
+    },
+    "breakEvenMonth": null,
+    "summary": "바질 재배 기준 월 공실 수익성 계산 결과입니다."
+  }
+}

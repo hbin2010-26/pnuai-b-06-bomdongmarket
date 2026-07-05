@@ -1,0 +1,6 @@
+rate_code,rate_category,season,rate_value,unit,base_charge_value,base_charge_unit,effective_date,source_id,data_status,remarks
+ELECTRICITY_GENERAL_LOW_VOLTAGE,ENERGY,SUMMER,180,KRW/kWh,6160,KRW/kW-month,2026-07-04,UTILITY_RATE_01,MVP_ESTIMATE,KEPCO tariff structure referenced; rate values simplified for MVP
+ELECTRICITY_GENERAL_LOW_VOLTAGE,ENERGY,WINTER,150,KRW/kWh,6160,KRW/kW-month,2026-07-04,UTILITY_RATE_01,MVP_ESTIMATE,KEPCO tariff structure referenced; rate values simplified for MVP
+ELECTRICITY_GENERAL_LOW_VOLTAGE,ENERGY,SHOULDER,120,KRW/kWh,6160,KRW/kW-month,2026-07-04,UTILITY_RATE_01,MVP_ESTIMATE,KEPCO tariff structure referenced; rate values simplified for MVP
+TOTAL_WATER_RATE,WATER,ALL,3100,KRW/m3,0,KRW/month,2026-07-04,UTILITY_RATE_01,MVP_ESTIMATE,Representative total water wastewater and water-use charge
+MINIMUM_WAGE,LABOR,ALL,10320,KRW/h,0,KRW/month,2026-01-01,LABOR_RATE_01,OFFICIAL,Official minimum wage basis; ancillary costs handled by multiplier
