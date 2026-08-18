@@ -17,14 +17,17 @@ public class ProfitCalculator {
     private static final double DAYS_PER_AVERAGE_MONTH = 365.0 / 12.0;
     private static final double HOURS_PER_AVERAGE_MONTH = 24.0 * DAYS_PER_AVERAGE_MONTH;
 
+    // 물리·요율 상수(전기요율, LED 효율, 월별 외기 등)는 여전히 CSV 참조 데이터에서 온다.
     private final ProfitReferenceData data;
+    // 작물별 재배 파라미터는 DB 에서 온다 — 자료를 보완할 때 코드를 고치지 않도록 분리했다.
+    private final CropProductionProvider crops;
 
     public boolean supports(String cropName) {
-        return data.hasCultivationData(cropName);
+        return crops.hasCultivationData(cropName);
     }
 
     public List<String> supportedCrops() {
-        return data.supportedCropNames();
+        return crops.supportedCropNames();
     }
 
     // 공간 입력 + 작물명 + 판매 단가로 월평균 수익성을 계산한다.
@@ -32,7 +35,7 @@ public class ProfitCalculator {
     // 시세 출처(백과사전/KAMIS)가 바뀌어도 계산 로직은 그대로 두기 위함.
     // 재배 파라미터가 없는 작물이면 예외 대신 호출 전 supports()로 걸러야 한다.
     public ProfitEstimate estimate(SpaceInputs space, String cropName, MarketPrice price) {
-        CropProduction crop = data.cropProduction(cropName);
+        CropProduction crop = crops.cropProduction(cropName);
         double pricePerKg = price.pricePerKgKrw();
 
         Space s = calculateSpace(space);

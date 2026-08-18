@@ -26,7 +26,8 @@ class ProfitCalculatorTest {
     static void setUp() {
         ProfitReferenceData data = new ProfitReferenceData();
         data.load();
-        calculator = new ProfitCalculator(data);
+        // CSV 구현을 그대로 파라미터 공급자로 쓴다 — DB 없이 Python 원본과의 수치 일치를 확인한다.
+        calculator = new ProfitCalculator(data, data);
     }
 
     private static void assertClose(double expected, double actual) {

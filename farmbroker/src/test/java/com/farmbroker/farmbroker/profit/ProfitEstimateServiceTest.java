@@ -36,7 +36,7 @@ class ProfitEstimateServiceTest {
         MarketPriceProvider prices = cropName ->
                 Optional.ofNullable(SEED_PRICES.get(cropName))
                         .map(price -> MarketPrice.seed(price, BASIS));
-        service = new ProfitEstimateService(new ProfitCalculator(data), prices);
+        service = new ProfitEstimateService(new ProfitCalculator(data, data), prices);
     }
 
     private static ProfitEstimateRequest request(double area, int monthlyRent) {
