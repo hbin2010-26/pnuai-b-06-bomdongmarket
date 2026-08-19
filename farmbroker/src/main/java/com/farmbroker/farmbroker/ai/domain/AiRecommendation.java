@@ -47,9 +47,6 @@ public class AiRecommendation {
     @Column(length = 500)
     private String additionalInfo;
 
-    @Column(columnDefinition = "TEXT")
-    private String layoutSuggestion;
-
     @Column(columnDefinition = "json")
     private String cautionsJson;
 
@@ -68,13 +65,12 @@ public class AiRecommendation {
 
     @Builder
     public AiRecommendation(Space space, User user, String preferredCrop, String purpose,
-                            String additionalInfo, String layoutSuggestion, String cautionsJson, String model) {
+                            String additionalInfo, String cautionsJson, String model) {
         this.space = space;
         this.user = user;
         this.preferredCrop = preferredCrop;
         this.purpose = purpose;
         this.additionalInfo = additionalInfo;
-        this.layoutSuggestion = layoutSuggestion;
         this.cautionsJson = cautionsJson;
         this.model = model;
     }

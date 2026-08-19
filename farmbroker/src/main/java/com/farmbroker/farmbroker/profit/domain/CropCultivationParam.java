@@ -104,4 +104,32 @@ public class CropCultivationParam {
         this.referenceDate = referenceDate;
         this.remarks = remarks;
     }
+
+    // 사람이 조사해 넣은 값인지. 시드는 이 값이 false 인 행만 갱신한다 —
+    // 조사값을 배포마다 추정값으로 되돌리면 조사한 사람이 같은 일을 다시 해야 한다.
+    public boolean isSeedEstimate() {
+        return SEED_DATA_STATUS.equals(dataStatus);
+    }
+
+    // 이 값이 시드에서 온 추정값이라는 표시. Initializer 와 같은 문자열을 봐야 해서 여기 둔다.
+    public static final String SEED_DATA_STATUS = "MVP_ESTIMATE";
+
+    // 같은 작물의 값을 시드 기준으로 다시 채운다.
+    // 새 엔티티를 만들어 그 값을 옮겨 담는 식이라, 파라미터가 늘어도 고칠 곳이 여기 한 군데다.
+    public void replaceValuesFrom(CropCultivationParam seed) {
+        this.yieldPerCycleKgM2 = seed.yieldPerCycleKgM2;
+        this.cyclesPerMonth = seed.cyclesPerMonth;
+        this.marketableRate = seed.marketableRate;
+        this.requiredPpfdUmolM2S = seed.requiredPpfdUmolM2S;
+        this.lightingHoursDay = seed.lightingHoursDay;
+        this.targetTemperatureC = seed.targetTemperatureC;
+        this.targetRelativeHumidity = seed.targetRelativeHumidity;
+        this.dailyEvapotranspirationMm = seed.dailyEvapotranspirationMm;
+        this.materialCostPerM2CycleKrw = seed.materialCostPerM2CycleKrw;
+        this.otherMaterialCostMonthKrw = seed.otherMaterialCostMonthKrw;
+        this.sourceId = seed.sourceId;
+        this.dataStatus = seed.dataStatus;
+        this.referenceDate = seed.referenceDate;
+        this.remarks = seed.remarks;
+    }
 }

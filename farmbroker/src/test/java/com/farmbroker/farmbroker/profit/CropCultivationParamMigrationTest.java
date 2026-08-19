@@ -47,6 +47,13 @@ class CropCultivationParamMigrationTest {
                     given.forEach(stored::add);
                     return stored;
                 });
+        // 시더는 작물마다 있는지 보고 없는 것만 넣으므로 save(단건)로 들어온다.
+        given(repository.save(org.mockito.ArgumentMatchers.any(CropCultivationParam.class)))
+                .willAnswer(call -> {
+                    CropCultivationParam given = call.getArgument(0);
+                    stored.add(given);
+                    return given;
+                });
         given(repository.findByCropName(anyString())).willAnswer(call -> {
             String name = call.getArgument(0);
             return stored.stream().filter(item -> item.getCropName().equals(name)).findFirst();
