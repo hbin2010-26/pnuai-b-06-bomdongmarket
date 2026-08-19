@@ -19,6 +19,7 @@ export const ENDPOINTS = {
   },
   profit: {
     estimate: '/profit/estimate',
+    crops: '/profit/crops',
   },
   files: {
     upload: '/files',

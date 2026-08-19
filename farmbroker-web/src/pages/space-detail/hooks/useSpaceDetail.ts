@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getRecommendation, getSpaceDetail } from '@/services/spaceService';
-import type { AiRecommendation, SpaceDetail } from '@/types/api';
+import type { AiRecommendation, AiRecommendationInput, SpaceDetail } from '@/types/api';
 import type { AsyncStatus } from '@/types/common';
 
 // 상세 페이지의 공간 조회와 AI 추천 조회를 분리해 각 상태를 독립적으로 표시합니다.
@@ -28,17 +28,20 @@ export function useSpaceDetail(spaceId: number) {
     }
   }, [spaceId]);
 
-  const loadRecommendation = useCallback(async () => {
-    setRecommendationStatus('loading');
+  const loadRecommendation = useCallback(
+    async (request: Omit<AiRecommendationInput, 'spaceId'> = {}) => {
+      setRecommendationStatus('loading');
 
-    try {
-      const result = await getRecommendation(spaceId);
-      setRecommendation(result);
-      setRecommendationStatus('success');
-    } catch {
-      setRecommendationStatus('error');
-    }
-  }, [spaceId]);
+      try {
+        const result = await getRecommendation(spaceId, request);
+        setRecommendation(result);
+        setRecommendationStatus('success');
+      } catch {
+        setRecommendationStatus('error');
+      }
+    },
+    [spaceId],
+  );
 
   useEffect(() => {
     void load();

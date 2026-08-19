@@ -60,7 +60,9 @@ export function SpaceDetailPage() {
             <SpaceInfoPanel space={space} />
             <SpaceMatchingRequestCard spaceId={space.spaceId} />
             <ProfitEstimateCard
-              onRun={() => requireAuth(loadRecommendation)}
+              area={space.area}
+              monthlyRent={space.monthlyRent}
+              onRun={(request) => requireAuth(() => void loadRecommendation(request))}
               recommendation={recommendation}
               status={recommendationStatus}
             />
