@@ -22,7 +22,12 @@ public record ProfitCropResponse(
                 example = "단가 정보가 없습니다.", nullable = true)
         String blockedReason,
 
-        @Schema(description = "값의 성격. MVP_ESTIMATE=추정값, 그 외는 조사·실측값", example = "MVP_ESTIMATE")
+        @Schema(description = """
+                값의 신뢰도 3단계.
+                MVP_ESTIMATE=근거 없는 초기 추정값, RESEARCHED=문헌·통계에서 찾은 값(sourceId 참고),
+                MEASURED=직접 측정한 값(referenceDate 가 측정일)""",
+                example = "MVP_ESTIMATE",
+                allowableValues = {"MVP_ESTIMATE", "RESEARCHED", "MEASURED"})
         String dataStatus,
         @Schema(description = "값을 가져온 출처 식별자", example = "PROFIT_CALCULATOR_CSV_0_3_1", nullable = true)
         String sourceId,

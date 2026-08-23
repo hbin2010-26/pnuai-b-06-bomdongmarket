@@ -16,9 +16,6 @@ public class ProfitCalculator {
 
     private static final double DAYS_PER_AVERAGE_MONTH = 365.0 / 12.0;
     private static final double HOURS_PER_AVERAGE_MONTH = 24.0 * DAYS_PER_AVERAGE_MONTH;
-    // 양액량만 30일·1.1배를 쓴다(Python 1.0.1 그대로).
-    private static final double NUTRIENT_DAYS_PER_MONTH = 30.0;
-    private static final double NUTRIENT_DRAINAGE_ALLOWANCE = 1.1;
 
     // 물리·요율 상수(전기요율, LED 효율, 월별 외기 등)는 여전히 CSV 참조 데이터에서 온다.
     private final ProfitReferenceData data;
@@ -49,12 +46,13 @@ public class ProfitCalculator {
         Energy energy = calculateEnergy(s, crop, lighting);                      // 블록4~6 전력
         double electricityCost = energy.averageMonthlyEnergyKwh() * data.standard("electricity_rate_krw_kwh");
 
-        double waterCost = calculateWaterCost(s, crop);                          // 블록7 용수
-        MaterialCost material = calculateMaterialCost(s, crop);                  // 블록8 재료
+        Water water = calculateWater(s, crop);                                   // 블록7 용수
+        // 양액은 작물이 실제로 받는 관수량 그대로다 — 블록7 결과를 다시 쓴다.
+        MaterialCost material = calculateMaterialCost(s, crop, water);           // 블록8 재료
         double laborCost = calculateLaborCost(production, crop);                 // 블록9 인건
 
         return calculateProfit(space, cropName, s, production, price, revenue,
-                lighting, energy, electricityCost, waterCost, material, laborCost); // 블록10 손익
+                lighting, energy, electricityCost, water.costKrw(), material, laborCost); // 블록10 손익
     }
 
     // 블록1: 공간 면적·체적. 다단 층 수는 작물에서 온다(1.0.1).
@@ -185,7 +183,10 @@ public class ProfitCalculator {
 
     // 블록7: 용수비. 배액률은 배액량/작물 관수량이라, 증발산량을 (1 - 배액률)로 나눠
     // 배액까지 포함한 관수량을 구한다(1.0.1).
-    private double calculateWaterCost(Space s, CropProduction crop) {
+    //
+    // 관수량은 양액비(블록8)도 그대로 쓰므로 함께 돌려준다. 같은 물을 두 곳에서 서로 다른
+    // 식으로 잡으면 재료비와 수도비의 비율이 어긋난다.
+    private Water calculateWater(Space s, CropProduction crop) {
         double drainageRatio = data.standard("drainage_ratio");
         if (drainageRatio < 0 || drainageRatio >= 1) {
             throw new IllegalArgumentException("배액률은 0 이상 1 미만이어야 합니다.");
@@ -194,17 +195,16 @@ public class ProfitCalculator {
         double irrigationL = evapotranspirationL / (1.0 - drainageRatio);
         double otherWaterL = s.totalAreaM2() * data.standard("other_water_l_m2_day") * DAYS_PER_AVERAGE_MONTH;
         double totalWaterM3 = (irrigationL + otherWaterL) / 1000.0;
-        return totalWaterM3 * data.standard("water_rate_krw_m3");
+        return new Water(irrigationL, totalWaterM3 * data.standard("water_rate_krw_m3"));
     }
 
     // 블록8: 재료비 = 월 모종비 + 월 양액비 (1.0.1).
     // 모종비는 1회 단가가 아니라 월 환산 단가라 회전수를 곱하지 않는다.
-    // 양액량의 1.1 배와 30 일은 Python 원본을 그대로 따른다 — 수도비 쪽 배액률(0.3)·
-    // 월 길이(365/12)와 기준이 다른데, 원본을 바꾸지 않고 옮기는 것이 먼저다(#128 리뷰에 남김).
-    private MaterialCost calculateMaterialCost(Space s, CropProduction crop) {
+    // 양액량은 블록7 의 작물 관수량(배액 포함)을 그대로 쓴다. 공실 전체면적 기준 기타 용수는
+    // 작물이 마시는 물이 아니므로 넣지 않는다.
+    private MaterialCost calculateMaterialCost(Space s, CropProduction crop, Water water) {
         double seedling = s.cultivationAreaM2() * crop.seedlingCostPerM2MonthKrw();
-        double nutrientSolutionL = s.cultivationAreaM2() * crop.dailyEvapotranspirationMm()
-                * NUTRIENT_DAYS_PER_MONTH * NUTRIENT_DRAINAGE_ALLOWANCE;
+        double nutrientSolutionL = water.irrigationL();
         double nutrientCost = nutrientSolutionL * data.standard("nutrient_cost_per_l_krw");
         return new MaterialCost(seedling, nutrientSolutionL, nutrientCost, seedling + nutrientCost);
     }
@@ -292,6 +292,10 @@ public class ProfitCalculator {
 
     private record MaterialCost(double seedlingKrw, double nutrientSolutionL,
                                 double nutrientKrw, double totalKrw) {
+    }
+
+    // 배액을 포함한 작물 관수량과 그 물값. 관수량은 양액비도 함께 쓴다.
+    private record Water(double irrigationL, double costKrw) {
     }
 
     private record HumidityRatio(double ratio, double vaporPressure) {

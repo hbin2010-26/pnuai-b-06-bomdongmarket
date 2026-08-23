@@ -73,7 +73,8 @@ public class CropCultivationParam {
     @Column(length = 100)
     private String sourceId;
 
-    // MVP_ESTIMATE(추정) / MEASURED(실측) 등. 화면에 실측인지 추정인지 알리는 데 쓴다.
+    // 값의 신뢰도 3단계. 화면이 숫자를 어떤 수준으로 읽어야 하는지 이걸로 판단한다.
+    // 자유 문자열이 아니라 아래 세 값 중 하나다 — DATA_STATUS_* 상수를 참고한다.
     @Column(nullable = false, length = 30)
     private String dataStatus;
 
@@ -114,8 +115,19 @@ public class CropCultivationParam {
         return SEED_DATA_STATUS.equals(dataStatus);
     }
 
+    // ── dataStatus 3단계 ──
+    // 값이 얼마나 믿을 만한지를 한 칸으로 나타낸다. 추정과 실측 사이에 "문헌·통계에서 찾아
+    // 넣은 값"이 실제로 가장 많은데, 2단계뿐이면 그 값이 추정값과 같은 취급을 받는다.
+    //
+    //   MVP_ESTIMATE — 근거 없이 정한 초기 추정값. 화면에 추정값임을 반드시 밝힌다.
+    //   RESEARCHED   — 논문·통계·업체 자료에서 찾아 넣은 값. sourceId 로 출처를 밝힌다.
+    //   MEASURED     — 우리가 직접 재배해 측정한 값. referenceDate 가 측정일이다.
+    public static final String DATA_STATUS_MVP_ESTIMATE = "MVP_ESTIMATE";
+    public static final String DATA_STATUS_RESEARCHED = "RESEARCHED";
+    public static final String DATA_STATUS_MEASURED = "MEASURED";
+
     // 이 값이 시드에서 온 추정값이라는 표시. Initializer 와 같은 문자열을 봐야 해서 여기 둔다.
-    public static final String SEED_DATA_STATUS = "MVP_ESTIMATE";
+    public static final String SEED_DATA_STATUS = DATA_STATUS_MVP_ESTIMATE;
 
     // 같은 작물의 값을 시드 기준으로 다시 채운다.
     // 새 엔티티를 만들어 그 값을 옮겨 담는 식이라, 파라미터가 늘어도 고칠 곳이 여기 한 군데다.

@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -148,15 +149,27 @@ public class AiRecommendService {
         return profitEstimateService.rank(inputs, null);
     }
 
+    // 작물을 지정했으면 그 작물 하나만 후보로 준다.
     // 사용자 요청이 없으면 계산기 상위 3개만 후보로 준다 — 모델이 고를 여지를 없애 결과를 고정한다.
     // 요청이 있거나 계산 가능한 작물이 2개도 안 되면 백과사전 전체를 후보로 준다.
     private List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
                                          AiRecommendRequest request) {
+        Map<String, Crop> cropByName = crops.stream()
+                .collect(Collectors.toMap(Crop::getName, Function.identity(), (first, second) -> first));
+
+        // 프롬프트로만 막으면 모델이 가끔 다른 작물을 끼워 넣는데, 후보를 줄이면 ID 검증에서 걸러진다.
+        // 이름이 목록에 없으면(직접 입력한 옛 데이터 등) 기존 흐름을 그대로 탄다.
+        String preferredName = request.getPreferredCrop();
+        if (StringUtils.hasText(preferredName)) {
+            Crop preferred = cropByName.get(preferredName.trim());
+            if (preferred != null) {
+                return List.of(preferred);
+            }
+        }
+
         if (RecommendPromptBuilder.hasUserRequest(request)) {
             return crops;
         }
-        Map<String, Crop> cropByName = crops.stream()
-                .collect(Collectors.toMap(Crop::getName, Function.identity(), (first, second) -> first));
         List<Crop> top = ranking.stream()
                 .map(estimate -> cropByName.get(estimate.cropName()))
                 .filter(Objects::nonNull)

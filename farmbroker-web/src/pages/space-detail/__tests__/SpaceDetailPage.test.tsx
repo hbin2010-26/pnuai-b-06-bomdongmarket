@@ -20,6 +20,25 @@ vi.mock('@/services/spaceService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/spaceService')>()),
   getRecommendation: vi.fn(),
 }));
+// 수익 카드가 작물 선택지를 서버에서 받아 옵니다 — 선택지가 없으면 작물을 고를 수 없습니다.
+vi.mock('@/services/profitService', () => ({
+  getProfitCrops: vi.fn().mockResolvedValue([profitCrop('바질'), profitCrop('상추')]),
+  getProfitEstimates: vi.fn().mockResolvedValue([]),
+}));
+
+// 서버는 가나다순으로 내려줍니다. 계산 가능 여부와 값의 성격만 화면이 씁니다.
+function profitCrop(cropName: string) {
+  return {
+    cropName,
+    calculable: true,
+    blockedReason: null,
+    dataStatus: 'MVP_ESTIMATE',
+    sourceId: 'PROFIT_CALCULATOR_CSV_1_0_1',
+    referenceDate: '2026-07-04',
+    remarks: null,
+    pricePerKgKrw: 8000,
+  };
+}
 
 function LocationProbe() {
   return <output>{useLocation().pathname}</output>;
@@ -31,12 +50,12 @@ function estimate(cropName: string, monthlyRevenueKrw: number): ProfitEstimate {
   return {
     cropName,
     totalAreaM2: 66,
-    cultivableRatio: 0.6,
-    areaUtilizationPercent: 60,
+    cultivableRatio: 0.65,
+    areaUtilizationPercent: 65,
     moduleLayers: 4,
     ceilingHeightM: 2.5,
-    availableFloorAreaM2: 39.6,
-    cultivationAreaM2: 158.4,
+    availableFloorAreaM2: 42.9,
+    cultivationAreaM2: 171.6,
     lightingPowerW: 11316,
     averageMonthlyEnergyKwh: 9200,
     monthlyTotalProductionKg: 475,
@@ -153,14 +172,57 @@ describe('SpaceDetailPage', () => {
     vi.mocked(getRecommendation).mockResolvedValue(recommendation());
     renderWithProviders(<SpaceDetailPage />, { route: '/spaces/1' });
 
-    await user.type(await screen.findByLabelText('희망 작물'), '바질');
+    // 작물과 목적은 고르는 값입니다 — 자유 입력이면 표현이 제각각이라 AI 해석이 흔들립니다.
+    // 선택지는 서버에서 받아 오므로 도착할 때까지 기다립니다.
+    await screen.findByRole('option', { name: '바질' });
+    await user.selectOptions(screen.getByLabelText('궁금한 작물'), '바질');
+    await user.click(screen.getByRole('radio', { name: '수익형' }));
     await user.type(screen.getByLabelText('추가 조건'), '초기 비용을 줄이고 싶습니다.');
     await user.click(screen.getByRole('button', { name: /AI 추천 실행/i }));
 
     expect(getRecommendation).toHaveBeenCalledWith(1, {
       preferredCrop: '바질',
+      purpose: '수익형',
       additionalInfo: '초기 비용을 줄이고 싶습니다.',
     });
+  });
+
+  // 조건을 잘못 넣었을 때 페이지를 새로 고치는 것 말고는 되돌릴 길이 없었습니다(PR #130 리뷰).
+  it('추천 조건 다시 설정을 누르면 입력 화면으로 돌아간다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 3,
+      email: 'consumer@example.com',
+      nickname: '지역소비자',
+      roles: ['CONSUMER'],
+    });
+    vi.mocked(getRecommendation).mockResolvedValue(recommendation());
+    renderWithProviders(<SpaceDetailPage />, { route: '/spaces/1' });
+
+    await user.click(await screen.findByRole('button', { name: /AI 추천 실행/i }));
+    await user.click(await screen.findByRole('button', { name: /추천 조건 다시 설정/ }));
+
+    expect(await screen.findByLabelText('궁금한 작물')).toBeInTheDocument();
+  });
+
+  // 총액만 보면 무엇을 줄여야 할지 알 수 없어 비용 구성을 함께 보여줍니다(PR #130 리뷰).
+  it('운영비를 항목별로 나눠 보여준다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 3,
+      email: 'consumer@example.com',
+      nickname: '지역소비자',
+      roles: ['CONSUMER'],
+    });
+    vi.mocked(getRecommendation).mockResolvedValue(recommendation());
+    renderWithProviders(<SpaceDetailPage />, { route: '/spaces/1' });
+
+    await user.click(await screen.findByRole('button', { name: /AI 추천 실행/i }));
+
+    expect(await screen.findByText('월 운영비 구성')).toBeInTheDocument();
+    // 가장 큰 항목이 인건비(245만 / 634만 = 38.6%)라, 그 비중이 보여야 합니다.
+    expect(screen.getByText('인건비')).toBeInTheDocument();
+    expect(screen.getByText('38.6%')).toBeInTheDocument();
   });
 
   // 추천이 3개 떠도 수익은 1개로 좁혀져, 상단 작물과 아래 금액이 어긋났다(#98).

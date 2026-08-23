@@ -43,6 +43,13 @@ export function useSpaceDetail(spaceId: number) {
     [spaceId],
   );
 
+  // 조건을 다시 잡을 수 있게 추천만 비웁니다. 공간 정보는 그대로 두어야
+  // 조건 입력 화면으로 돌아가도 면적·월세가 다시 로딩되지 않습니다.
+  const clearRecommendation = useCallback(() => {
+    setRecommendation(null);
+    setRecommendationStatus('idle');
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -55,5 +62,6 @@ export function useSpaceDetail(spaceId: number) {
     error,
     reload: load,
     loadRecommendation,
+    clearRecommendation,
   };
 }

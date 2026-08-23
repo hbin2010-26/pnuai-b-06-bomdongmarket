@@ -78,11 +78,22 @@ public class RecommendPromptBuilder {
 
     // 요청이 없으면 순위를 그대로 따르게 하고, 있으면 그 요청만큼 벗어날 수 있게 한다.
     private String selectionRule(AiRecommendRequest request) {
+        // 작물을 콕 집어 물었으면 그 작물만 설명한다. 다른 작물을 같이 내놓으면
+        // 사용자가 물어본 것에 답하지 않고 화제를 돌리는 셈이다.
+        if (StringUtils.hasText(request.getPreferredCrop())) {
+            return """
+                    사용자가 작물을 지정했습니다. 지정한 작물 하나만 reason 을 쓰세요.
+                    다른 작물을 추천하거나 더 나은 작물을 제안하지 마세요.
+                    그 작물이 이 공간에 불리하더라도 작물을 바꾸지 말고, 왜 불리한지를 reason 에 쓰고
+                    보완할 방법을 cautions 에 적으세요.""";
+        }
         if (!hasUserRequest(request)) {
             return """
                     [서버 계산 결과]에 있는 작물 전부에 대해 그 순서대로 reason 을 쓰세요.
                     작물을 빼거나 더하거나 순서를 바꾸지 마세요.""";
         }
+        // 작물 지정 없이 목적·추가 정보만 온 경우다. 순위 밖 작물로 바꿀 수 있게 둘지는
+        // 아직 정하지 않았다(PR #130 리뷰) — 정해지기 전까지 기존 동작을 유지한다.
         return """
                 아래 [사용자 요청]이 있습니다. [서버 계산 결과]를 기준으로 삼되, 요청에 더 맞는 작물이
                 순위 밖에 있으면 [작물 백과사전 후보] 안에서 2~3개로 바꿔도 됩니다.

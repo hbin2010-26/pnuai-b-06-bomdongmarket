@@ -66,7 +66,7 @@ class ProfitEstimateServiceTest {
 
         assertEquals("딸기", best.cropName());
         assertEquals(11_512_800L, best.monthlyRevenueKrw());
-        assertEquals(2_973_302L, best.landlordExpectedIncomeKrw());
+        assertEquals(2_941_212L, best.landlordExpectedIncomeKrw());
         assertEquals(1_200_000L, best.desiredMonthlyRentKrw());
         assertEquals("장기계약형", best.contractType());
     }

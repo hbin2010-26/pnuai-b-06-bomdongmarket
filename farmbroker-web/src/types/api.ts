@@ -247,7 +247,8 @@ export interface ProfitEstimate {
 export interface ProfitEstimateInput {
   area: number;
   monthlyRent: number;
-  // 설비 값입니다. 비우면 서버가 표준 가정값(0.6 / 4층 / 2.5m)을 씁니다.
+  // 설비 값입니다. 비우면 서버가 표준 가정값(재배가능비율 0.65 / 천장고 2.5m)을 씁니다.
+  // 다단 층 수는 작물이 정하므로 여기서 보내지 않습니다.
   cultivableRatio?: number;
   ceilingHeightM?: number;
   // 특정 작물만 계산할 때 지정합니다. 비우면 계산 가능한 작물 전체가 배분수익 순으로 옵니다.
