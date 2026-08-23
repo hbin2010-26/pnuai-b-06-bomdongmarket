@@ -132,7 +132,6 @@ class ProfitCalculationTest(unittest.TestCase):
                 "cycles_per_month": 10.0,
                 "seedling_cost_per_m2_month_krw": 5_000.0,
                 "daily_evapotranspiration_mm": 2.0,
-                "other_material_cost_month_krw": 300_000.0,
             },
             {"nutrient_cost_per_l_krw": 20.0},
         )
@@ -151,7 +150,6 @@ class ProfitCalculationTest(unittest.TestCase):
             result["monthly_material_cost_krw"],
             150_000.0 + expected_nutrient_cost,
         )
-        self.assertEqual(result["monthly_other_material_cost_krw"], 300_000.0)
         self.assertEqual(result["monthly_seedling_cost_krw"] * 12, 1_800_000.0)
         self.assertEqual(30.0 * 15_000.0 * 4, 1_800_000.0)
 
@@ -181,7 +179,7 @@ class ProfitCalculationTest(unittest.TestCase):
             available_floor_area_m2=0,
             desired_monthly_rent_krw=800,
             standard={
-                "depreciation_and_other_cost_krw_month": 0,
+                "other_cost_krw_month": 0,
                 "equipment_rental_cost_krw_m2_month": 20_000,
             },
             contract={"landlord_share_ratio": 0.8},
@@ -201,7 +199,7 @@ class ProfitCalculationTest(unittest.TestCase):
             available_floor_area_m2=0,
             desired_monthly_rent_krw=0,
             standard={
-                "depreciation_and_other_cost_krw_month": 0,
+                "other_cost_krw_month": 0,
                 "equipment_rental_cost_krw_m2_month": 20_000,
             },
             contract={"landlord_share_ratio": 0.8},
@@ -224,14 +222,15 @@ class ProfitCalculationTest(unittest.TestCase):
             desired_monthly_rent_krw=0,
             standard={
                 "equipment_rental_cost_krw_m2_month": 20_000,
-                "depreciation_and_other_cost_krw_month": 100_000,
+                "other_cost_krw_month": 300_000,
             },
             contract={"landlord_share_ratio": 0.8},
         )
 
         self.assertEqual(result["monthly_equipment_rental_cost_krw"], 200_000)
         self.assertEqual(result["monthly_base_cost_krw"], 260_000)
-        self.assertEqual(result["monthly_operating_cost_krw"], 400_000)
+        self.assertEqual(result["monthly_other_cost_krw"], 300_000)
+        self.assertEqual(result["monthly_operating_cost_krw"], 600_000)
 
     def test_excel_contains_all_scenarios_and_required_sheets(self) -> None:
         spaces = read_csv_rows("space_info.csv")

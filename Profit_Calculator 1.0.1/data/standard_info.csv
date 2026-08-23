@@ -19,4 +19,4 @@ electricity_rate_krw_kwh,155,KRW/kWh,전기 단일요율
 minimum_wage_krw_hour,10320,KRW/hour,최저시급
 labor_hours_per_kg,0.5,hour/kg,생산량당 노동량
 equipment_rental_cost_krw_m2_month,22000,KRW/m2/month,사용가능 바닥면적 기준 월 기기 대여비
-depreciation_and_other_cost_krw_month,100000,KRW/month,임시 감가상각 등 기타 월 비용
+other_cost_krw_month,300000,KRW/month,기타비용

@@ -19,9 +19,7 @@ def calculate_profit(
     contract: dict[str, float],
 ) -> dict[str, float | str | bool]:
     """장기형 영업이익을 계산하고 공실 월세와 비교해 계약형태를 추천한다."""
-    depreciation_and_other_cost = standard[
-        "depreciation_and_other_cost_krw_month"
-    ]
+    other_cost = standard["other_cost_krw_month"]
     equipment_rental_rate = standard[
         "equipment_rental_cost_krw_m2_month"
     ]
@@ -44,9 +42,7 @@ def calculate_profit(
         + monthly_material_cost_krw
         + equipment_rental_cost
     )
-    monthly_operating_cost = (
-        base_cost + monthly_labor_cost_krw + depreciation_and_other_cost
-    )
+    monthly_operating_cost = base_cost + monthly_labor_cost_krw + other_cost
     monthly_operating_profit = monthly_revenue_krw - monthly_operating_cost
     landlord_expected_income = monthly_operating_profit * landlord_ratio
     business_operating_profit = (
@@ -71,7 +67,7 @@ def calculate_profit(
         "equipment_rental_area_m2": available_floor_area_m2,
         "equipment_rental_rate_krw_m2_month": equipment_rental_rate,
         "monthly_equipment_rental_cost_krw": equipment_rental_cost,
-        "depreciation_and_other_cost_krw": depreciation_and_other_cost,
+        "monthly_other_cost_krw": other_cost,
         "monthly_operating_cost_krw": monthly_operating_cost,
         "monthly_operating_profit_krw": monthly_operating_profit,
         "landlord_share_ratio": landlord_ratio,

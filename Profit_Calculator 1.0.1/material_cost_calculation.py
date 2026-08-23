@@ -26,7 +26,6 @@ def calculate_material_cost(
     nutrient_cost_rate = float(standard["nutrient_cost_per_l_krw"])
     nutrient_cost = monthly_nutrient_solution_l * nutrient_cost_rate
 
-    other_material_cost = float(crop["other_material_cost_month_krw"])
     total_material_cost = seedling_cost + nutrient_cost
 
     return {
@@ -35,6 +34,5 @@ def calculate_material_cost(
         "monthly_nutrient_solution_l": monthly_nutrient_solution_l,
         "nutrient_cost_per_l_krw": nutrient_cost_rate,
         "monthly_nutrient_cost_krw": nutrient_cost,
-        "monthly_other_material_cost_krw": other_material_cost,
         "monthly_material_cost_krw": total_material_cost,
     }

@@ -149,7 +149,7 @@ def _create_summary_sheet(
         "월 재료비(원)",
         "월 인건비(원)",
         "월 기기 대여비(원)",
-        "감가상각 등 기타비(원)",
+        "기타비용(원)",
         "월 운영비(원)",
         "월 영업이익(원)",
         "공간 대여자 배분율",
@@ -212,7 +212,7 @@ def _create_summary_sheet(
                 material["monthly_material_cost_krw"],
                 labor["monthly_labor_cost_krw"],
                 profit["monthly_equipment_rental_cost_krw"],
-                profit["depreciation_and_other_cost_krw"],
+                profit["monthly_other_cost_krw"],
                 profit["monthly_operating_cost_krw"],
                 profit["monthly_operating_profit_krw"],
                 profit["landlord_share_ratio"],
@@ -302,8 +302,8 @@ def _create_cost_breakdown_sheet(
         "인건비 비율",
         "기기 대여비(원)",
         "기기 대여비 비율",
-        "감가상각 등 기타비(원)",
-        "기타비 비율",
+        "기타비용(원)",
+        "기타비용 비율",
         "비용 비율 합계",
     ]
     sheet.append([])
@@ -334,7 +334,7 @@ def _create_cost_breakdown_sheet(
                 f"=IF($D{row}=0,0,K{row}/$D{row})",
                 profit["monthly_equipment_rental_cost_krw"],
                 f"=IF($D{row}=0,0,M{row}/$D{row})",
-                profit["depreciation_and_other_cost_krw"],
+                profit["monthly_other_cost_krw"],
                 f"=IF($D{row}=0,0,O{row}/$D{row})",
                 f"=SUM(F{row},H{row},J{row},L{row},N{row},P{row})",
             ]
@@ -575,6 +575,12 @@ def _create_assumptions_sheet(
             f"{equipment_rental_rate:,.0f} 원/m²/month",
             "사용가능 바닥면적 기준",
         ),
+        (
+            "비용",
+            "월 기타비용",
+            f"{float(profit['monthly_other_cost_krw']):,.0f} 원/month",
+            "standard_info.csv 공통값; 모든 시나리오에 월 1회 적용",
+        ),
         ("수도", "배액률", f"{float(water['drainage_ratio']):.0%}", "standard_info.csv 공통값; 모든 작물에 동일 적용"),
         ("수도", "수도 종합단가", f"{float(water['water_rate_krw_m3']):,.0f} 원/m³", "standard_info.csv 입력"),
         ("수익", "공간 대여자 배분비율", "0.8", "contraction_info.csv 입력"),
@@ -668,7 +674,7 @@ def _create_checks_sheet(
             sheet.cell(water_row, column).number_format = "0.000"
 
         sheet.cell(cost_check_row, 1, site["scenario_id"])
-        sheet.cell(cost_check_row, 2, "월 운영비 = 전기비 + 수도비 + 재료비 + 인건비 + 기기 대여비 + 기타비")
+        sheet.cell(cost_check_row, 2, "월 운영비 = 전기비 + 수도비 + 재료비 + 인건비 + 기기 대여비 + 기타비용")
         sheet.cell(cost_check_row, 3, f"='비용구성'!D{cost_row}")
         sheet.cell(
             cost_check_row,

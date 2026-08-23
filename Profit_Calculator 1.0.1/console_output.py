@@ -152,6 +152,10 @@ def print_site_result(site: dict[str, object]) -> None:
         f"{format_krw(float(profit['equipment_rental_rate_krw_m2_month']))}/m²)"
     )
     print(
+        f"  월 기타비용 "
+        f"{format_krw(float(profit['monthly_other_cost_krw']))}"
+    )
+    print(
         f"  월 기초비용 {format_krw(float(profit['monthly_base_cost_krw']))} | "
         f"월 운영비용 {format_krw(float(profit['monthly_operating_cost_krw']))} | "
         f"월 영업이익 {format_krw(float(profit['monthly_operating_profit_krw']))}"
