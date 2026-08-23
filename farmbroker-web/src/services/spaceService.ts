@@ -4,6 +4,7 @@ import { createMockPage, mockDelay } from '@/mocks/handlers';
 import { mockRecommendation, mockSpaces } from '@/mocks/mockSpaces';
 import type {
   AiRecommendation,
+  AiRecommendationInput,
   PageResponse,
   SpaceCreateInput,
   SpaceDeleteResult,
@@ -206,15 +207,28 @@ export async function deleteSpace(spaceId: number): Promise<SpaceDeleteResult> {
   return { spaceId, deleted: true };
 }
 
-export async function getRecommendation(spaceId: number): Promise<AiRecommendation> {
+// 희망 작물·목적·추가 조건은 선택 입력입니다. 넣으면 그만큼 추천이 사용자 의도로 좁혀지고,
+// 비우면 서버 계산기 순위를 그대로 따라 같은 공간에서 결과가 흔들리지 않습니다.
+export async function getRecommendation(
+  spaceId: number,
+  request: Omit<AiRecommendationInput, 'spaceId'> = {},
+): Promise<AiRecommendation> {
   if (!USE_MOCKS) {
     const response = await apiRequest<AiRecommendation>(ENDPOINTS.ai.recommend, {
       method: 'POST',
-      body: { spaceId },
+      // 빈 문자열을 보내면 서버가 "없음"이 아니라 빈 값으로 프롬프트에 넣습니다.
+      body: { spaceId, ...pruneBlank(request) },
     });
     return response.data;
   }
 
   await mockDelay();
   return { ...mockRecommendation, spaceId };
+}
+
+// 비어 있는 자유 입력은 아예 보내지 않습니다.
+function pruneBlank(request: Omit<AiRecommendationInput, 'spaceId'>) {
+  return Object.fromEntries(
+    Object.entries(request).filter(([, value]) => typeof value === 'string' && value.trim() !== ''),
+  );
 }

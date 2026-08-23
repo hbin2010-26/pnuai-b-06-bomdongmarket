@@ -19,10 +19,15 @@ import java.util.Map;
 // Python 원본이 crop_name(한글)으로 조회하므로 여기서도 작물명 키를 유지한다.
 // CSV는 UTF-8(BOM 포함)로 저장돼 있어 첫 열 헤더의 BOM을 제거한다.
 @Component
-public class ProfitReferenceData {
+public class ProfitReferenceData implements CropProductionProvider {
 
     // 작물 재배 파라미터 (crop_production_info.csv)
+    //
+    // 1.0.1 부터 다단 층 수가 작물 속성이다. 상추 4단·딸기 2단처럼 작물마다 쌓을 수 있는
+    // 단수가 달라, 공간 가정값으로 두면 두 작물이 같은 재배면적을 갖게 된다.
+    // 재료비도 1회 단가 대신 월 환산 모종비로 바뀌었고 양액비가 따로 붙는다.
     public record CropProduction(
+            double moduleLayers,
             double yieldPerCycleKgM2,
             double cyclesPerMonth,
             double marketableRate,
@@ -31,8 +36,7 @@ public class ProfitReferenceData {
             double targetTemperatureC,
             double targetRelativeHumidity,
             double dailyEvapotranspirationMm,
-            double materialCostPerM2CycleKrw,
-            double otherMaterialCostMonthKrw) {
+            double seedlingCostPerM2MonthKrw) {
     }
 
     // 월별 외기 조건 (monthly_environment.csv)
@@ -67,6 +71,7 @@ public class ProfitReferenceData {
     // ── 조회 API ──
 
     // 재배 파라미터(수확량·회전수·광·온습도 등)를 가진 작물인지. 단가는 MarketPriceProvider가 따로 제공한다.
+    @Override
     public boolean hasCultivationData(String cropName) {
         return cropName != null && cropProduction.containsKey(cropName);
     }
@@ -74,10 +79,12 @@ public class ProfitReferenceData {
     // 재배 파라미터를 가진 작물 목록. CSV 등재 순서를 유지한다.
     // 단가는 더 이상 이 클래스가 들고 있지 않으므로(MarketPriceProvider 담당) 여기서 거르지 않는다.
     // 단가를 모르는 작물은 호출부가 MarketPriceProvider의 빈 결과로 걸러 낸다.
+    @Override
     public List<String> supportedCropNames() {
         return List.copyOf(cropProduction.keySet());
     }
 
+    @Override
     public CropProduction cropProduction(String cropName) {
         CropProduction crop = cropProduction.get(cropName);
         if (crop == null) {
@@ -116,6 +123,7 @@ public class ProfitReferenceData {
         Map<String, CropProduction> result = new LinkedHashMap<>();
         for (Map<String, String> row : readRows("crop_production_info.csv")) {
             result.put(row.get("crop_name").strip(), new CropProduction(
+                    parse(row, "module_layers"),
                     parse(row, "yield_per_cycle_kg_m2"),
                     parse(row, "cycles_per_month"),
                     parse(row, "marketable_rate"),
@@ -124,8 +132,7 @@ public class ProfitReferenceData {
                     parse(row, "target_temperature_c"),
                     parse(row, "target_relative_humidity"),
                     parse(row, "daily_evapotranspiration_mm"),
-                    parse(row, "material_cost_per_m2_cycle_krw"),
-                    parse(row, "other_material_cost_month_krw")));
+                    parse(row, "seedling_cost_per_m2_month_krw")));
         }
         return result;
     }

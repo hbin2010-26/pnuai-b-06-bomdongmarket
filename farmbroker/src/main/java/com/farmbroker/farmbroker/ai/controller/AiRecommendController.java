@@ -96,7 +96,6 @@ public class AiRecommendController {
                                                             "avgPricePerKg": 15000
                                                           }
                                                         ],
-                                                        "layoutSuggestion": "벽면에 다단 재배대를 배치하고 중앙에 작업 통로를 확보하세요.",
                                                         "cautions": ["고온기에는 환기와 실내 온도를 확인하세요."],
                                                         "createdAt": "2026-07-18T10:30:00"
                                                       }
@@ -121,7 +120,6 @@ public class AiRecommendController {
                                                             "avgPricePerKg": 7000
                                                           }
                                                         ],
-                                                        "layoutSuggestion": "저장된 이전 배치 제안",
                                                         "cautions": [],
                                                         "createdAt": "2026-07-17T15:00:00"
                                                       }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getRecommendation, getSpaceDetail } from '@/services/spaceService';
-import type { AiRecommendation, SpaceDetail } from '@/types/api';
+import type { AiRecommendation, AiRecommendationInput, SpaceDetail } from '@/types/api';
 import type { AsyncStatus } from '@/types/common';
 
 // 상세 페이지의 공간 조회와 AI 추천 조회를 분리해 각 상태를 독립적으로 표시합니다.
@@ -28,17 +28,27 @@ export function useSpaceDetail(spaceId: number) {
     }
   }, [spaceId]);
 
-  const loadRecommendation = useCallback(async () => {
-    setRecommendationStatus('loading');
+  const loadRecommendation = useCallback(
+    async (request: Omit<AiRecommendationInput, 'spaceId'> = {}) => {
+      setRecommendationStatus('loading');
 
-    try {
-      const result = await getRecommendation(spaceId);
-      setRecommendation(result);
-      setRecommendationStatus('success');
-    } catch {
-      setRecommendationStatus('error');
-    }
-  }, [spaceId]);
+      try {
+        const result = await getRecommendation(spaceId, request);
+        setRecommendation(result);
+        setRecommendationStatus('success');
+      } catch {
+        setRecommendationStatus('error');
+      }
+    },
+    [spaceId],
+  );
+
+  // 조건을 다시 잡을 수 있게 추천만 비웁니다. 공간 정보는 그대로 두어야
+  // 조건 입력 화면으로 돌아가도 면적·월세가 다시 로딩되지 않습니다.
+  const clearRecommendation = useCallback(() => {
+    setRecommendation(null);
+    setRecommendationStatus('idle');
+  }, []);
 
   useEffect(() => {
     void load();
@@ -52,5 +62,6 @@ export function useSpaceDetail(spaceId: number) {
     error,
     reload: load,
     loadRecommendation,
+    clearRecommendation,
   };
 }

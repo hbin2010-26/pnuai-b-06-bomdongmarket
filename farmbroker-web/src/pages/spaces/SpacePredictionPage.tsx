@@ -8,6 +8,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ROUTES } from '@/constants/routes';
+import { FacilityAssumptionCard } from '@/pages/spaces/components/FacilityAssumptionCard';
 import { PredictionResultCard } from '@/pages/spaces/components/PredictionResultCard';
 import { SpaceSummaryCard } from '@/pages/spaces/components/SpaceSummaryCard';
 import { useSpaceRegistration } from '@/pages/spaces/hooks/useSpaceRegistration';
@@ -33,8 +34,16 @@ interface PredictionStepProps {
 }
 
 function PredictionStep({ input, addressParts }: PredictionStepProps) {
-  const { estimates, predictionStatus, saveStatus, saveError, reloadPrediction, submit } =
-    useSpaceRegistration(input);
+  const {
+    estimates,
+    predictionStatus,
+    saveStatus,
+    saveError,
+    facility,
+    setFacility,
+    reloadPrediction,
+    submit,
+  } = useSpaceRegistration(input);
 
   if (saveStatus === 'success') {
     return (
@@ -86,6 +95,13 @@ function PredictionStep({ input, addressParts }: PredictionStepProps) {
       </div>
 
       <div className="grid gap-5">
+        {/* 설비 조건을 결과 위에 둡니다 — 아래 숫자가 이 값에서 나온다는 것이 순서로 읽힙니다. */}
+        <FacilityAssumptionCard
+          disabled={predictionStatus === 'loading' || saveStatus === 'loading'}
+          onChange={setFacility}
+          value={facility}
+        />
+
         {predictionStatus === 'loading' || predictionStatus === 'idle' ? (
           <LoadingState label="수익 예측을 계산하는 중입니다" />
         ) : predictionStatus === 'error' ? (

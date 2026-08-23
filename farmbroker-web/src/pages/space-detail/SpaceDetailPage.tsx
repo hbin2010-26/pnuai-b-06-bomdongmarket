@@ -26,6 +26,7 @@ export function SpaceDetailPage() {
     error,
     reload,
     loadRecommendation,
+    clearRecommendation,
   } = useSpaceDetail(spaceId);
 
   return (
@@ -60,7 +61,10 @@ export function SpaceDetailPage() {
             <SpaceInfoPanel space={space} />
             <SpaceMatchingRequestCard spaceId={space.spaceId} />
             <ProfitEstimateCard
-              onRun={() => requireAuth(loadRecommendation)}
+              area={space.area}
+              monthlyRent={space.monthlyRent}
+              onReset={clearRecommendation}
+              onRun={(request) => requireAuth(() => void loadRecommendation(request))}
               recommendation={recommendation}
               status={recommendationStatus}
             />

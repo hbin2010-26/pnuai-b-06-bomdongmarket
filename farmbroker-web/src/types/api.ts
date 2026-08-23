@@ -189,8 +189,13 @@ export interface CropRecommendation {
   cropName: string;
   cropId: number | null;
   reason: string;
+  // 뽑힌 기준입니다. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향 기반 추천.
+  pickType: 'PROFIT' | 'PREFERENCE';
   expectedYieldKg: number | null;
   avgPricePerKg: number | null;
+  // 이 작물 기준 서버 계산값입니다. 추천 작물마다 따로 옵니다 —
+  // 예전에는 대표 작물 하나만 계산해 화면의 작물과 금액이 어긋났습니다.
+  profitEstimate: ProfitEstimate | null;
 }
 
 // 서버의 결정론적 수익 계산기(ProfitCalculator) 결과입니다. 금액은 KRW/월, 적자는 음수로 옵니다.
@@ -200,6 +205,7 @@ export interface ProfitEstimate {
   totalAreaM2: number;
   cultivableRatio: number;
   areaUtilizationPercent: number;
+  // 1.0.1 부터 다단 층 수는 작물 속성입니다 — 상추 4단, 딸기 2단.
   moduleLayers: number;
   ceilingHeightM: number;
   availableFloorAreaM2: number;
@@ -210,13 +216,22 @@ export interface ProfitEstimate {
   monthlyTotalProductionKg: number;
   monthlySalesKg: number;
   pricePerKgKrw: number;
+  // 단가 출처입니다. SEED=작물 백과사전 기준값, KAMIS=농산물유통정보 시세.
+  priceSource: string;
+  priceBasisDate: string | null;
   monthlyRevenueKrw: number;
   // 비용
   electricityCostKrw: number;
   waterCostKrw: number;
+  // 재료비는 모종비와 양액비로 나뉩니다.
+  seedlingCostKrw: number;
+  nutrientSolutionL: number;
+  nutrientCostKrw: number;
   materialCostKrw: number;
   laborCostKrw: number;
-  depreciationAndOtherCostKrw: number;
+  // 설비는 빌려 쓰는 것으로 잡습니다 — 사용가능 바닥면적 기준 월 대여비.
+  equipmentRentalCostKrw: number;
+  otherCostKrw: number;
   monthlyOperatingCostKrw: number;
   // 손익·배분·계약 추천
   monthlyOperatingProfitKrw: number;
@@ -234,22 +249,46 @@ export interface ProfitEstimate {
 export interface ProfitEstimateInput {
   area: number;
   monthlyRent: number;
+  // 설비 값입니다. 비우면 서버가 표준 가정값(재배가능비율 0.65 / 천장고 2.5m)을 씁니다.
+  // 다단 층 수는 작물이 정하므로 여기서 보내지 않습니다.
+  cultivableRatio?: number;
+  ceilingHeightM?: number;
+  // 특정 작물만 계산할 때 지정합니다. 비우면 계산 가능한 작물 전체가 배분수익 순으로 옵니다.
+  cropNames?: string[];
+}
+
+// 수익 계산에 쓸 수 있는 작물 하나와 그 값의 출처입니다.
+// 재배 파라미터가 아직 추정값이라, 숫자만 보여 주면 실측처럼 읽혀 출처를 함께 받습니다.
+export interface ProfitCrop {
+  cropName: string;
+  // 재배 파라미터와 단가가 모두 있어야 계산됩니다.
+  calculable: boolean;
+  blockedReason: string | null;
+  // MVP_ESTIMATE면 추정값, 그 외는 조사·실측값입니다.
+  dataStatus: string;
+  sourceId: string | null;
+  referenceDate: string | null;
+  remarks: string | null;
+  pricePerKgKrw: number | null;
+  priceSource: string | null;
 }
 
 export interface AiRecommendation {
   recommendationId: number;
   spaceId: number;
   recommendedCrops: CropRecommendation[];
-  layoutSuggestion: string;
   cautions: string[];
   createdAt: string;
+  // 첫 추천 작물의 계산값입니다. 작물별 값은 recommendedCrops[].profitEstimate 에 있습니다.
   profitEstimate: ProfitEstimate | null;
 }
 
 export interface AiRecommendationInput {
   spaceId: number;
+  // 계산 가능한 작물 목록(GET /profit/crops)에서 고른 이름입니다.
   preferredCrop?: string;
-  purpose?: string;
+  // 수익형 또는 취미형. 목적에 따라 AI 근거의 무게중심이 달라집니다.
+  purpose?: '수익형' | '취미형';
   additionalInfo?: string;
 }
 

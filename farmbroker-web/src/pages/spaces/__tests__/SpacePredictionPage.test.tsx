@@ -55,11 +55,12 @@ describe('공간 등록 전 수익 예측 확인', () => {
     // 검색한 도로명주소와 직접 입력한 상세주소가 한 줄로 합쳐져 서버로 넘어갑니다.
     expect(screen.getByText(`${SEARCHED_ADDRESS} 3층 302호`)).toBeInTheDocument();
 
-    // 66㎡ 기준 배분수익 1위는 딸기이며 수치는 서버 계산기 값과 같아야 합니다.
-    expect(await screen.findByRole('heading', { name: '딸기' })).toBeInTheDocument();
+    // 66㎡ 기준 배분수익 1위는 애플민트이며 수치는 서버 계산기 값과 같아야 합니다
+    // (1.0.1 에서 작물이 6종으로 늘고 단가·단수가 바뀌면서 1위가 딸기에서 바뀌었습니다).
+    expect(await screen.findByRole('heading', { name: '애플민트' })).toBeInTheDocument();
     expect(screen.getByText('예상 월 매출')).toBeInTheDocument();
-    expect(screen.getByText('₩6,629,040')).toBeInTheDocument();
-    expect(screen.getByText('₩1,186,585')).toBeInTheDocument();
+    expect(screen.getByText('₩12,602,304')).toBeInTheDocument();
+    expect(screen.getByText('₩6,394,823')).toBeInTheDocument();
     expect(screen.getByText('장기계약형')).toBeInTheDocument();
     // 입력한 희망 월세가 예측의 비교 기준과 요약 카드 양쪽에 그대로 반영됩니다.
     expect(screen.getAllByText('₩500,000')).toHaveLength(2);
@@ -79,8 +80,9 @@ describe('공간 등록 전 수익 예측 확인', () => {
     await user.click(screen.getByRole('button', { name: /수익 예측 확인/i }));
 
     // 66㎡의 두 배 면적이므로 매출도 두 배가 됩니다.
-    expect(await screen.findByText('₩13,258,080')).toBeInTheDocument();
-    expect(screen.getByText('316.8㎡')).toBeInTheDocument();
+    expect(await screen.findByText('₩25,204,608')).toBeInTheDocument();
+    // 재배면적 = 132 × 재배가능비율 0.65 × 애플민트 4단.
+    expect(screen.getByText('343.2㎡')).toBeInTheDocument();
   });
 
   // 이 화면의 목적이 '등록 전 수익 확인'이므로 예측이 끝나기 전에는 등록을 막아야 한다.

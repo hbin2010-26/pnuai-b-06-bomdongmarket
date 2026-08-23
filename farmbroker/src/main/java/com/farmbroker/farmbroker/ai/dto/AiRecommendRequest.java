@@ -17,15 +17,23 @@ public class AiRecommendRequest {
     @NotNull(message = "공간 ID는 필수입니다.")
     private Long spaceId;
 
-    @Schema(description = "사용자가 우선 검토하고 싶은 작물명", example = "상추", maxLength = 30, nullable = true)
+    @Schema(description = """
+            궁금한 작물명. GET /profit/crops 의 이름을 그대로 보냅니다.
+            보내면 AI가 다른 작물을 추천하지 않고 이 작물만 설명합니다.""",
+            example = "상추", maxLength = 30, nullable = true)
     @Size(max = 30, message = "희망 작물은 30자 이하여야 합니다.")
     private String preferredCrop;
 
-    @Schema(description = "재배 목적", example = "소규모 부업", maxLength = 100, nullable = true)
+    @Schema(description = """
+            재배 목적. 수익형 또는 취미형. 근거 문장의 무게중심이 달라집니다 —
+            수익형은 배분수익과 비용 구조를, 취미형은 난이도와 재배기간을 앞에 둡니다.""",
+            example = "수익형", maxLength = 100, nullable = true,
+            allowableValues = {"수익형", "취미형"})
     @Size(max = 100, message = "목적은 100자 이하여야 합니다.")
     private String purpose;
 
-    @Schema(description = "추천에 반영할 추가 조건", example = "초기 비용을 최대한 줄이고 싶습니다.", maxLength = 500, nullable = true)
+    @Schema(description = "기타 취향 및 요청사항", example = "손이 덜 가는 작물이면 좋겠습니다.",
+            maxLength = 500, nullable = true)
     @Size(max = 500, message = "추가 정보는 500자 이하여야 합니다.")
     private String additionalInfo;
 }
