@@ -8,9 +8,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import com.farmbroker.farmbroker.profit.dto.KamisCollectResponse;
 
@@ -140,25 +144,6 @@ class KamisPriceCollectorTest {
     }
 
     @Test
-    @DisplayName("수동 수집은 최소 간격 안에 다시 부르면 외부를 부르지 않는다")
-    void manual_collection_is_rate_limited() {
-        // AtomicBoolean 은 동시 실행만 막는다. 순차 반복 호출은 이 간격이 막는다.
-        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
-        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
-        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
-        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
-        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
-
-        assertThat(collector.collectWithReport(TODAY, true).updated()).isEqualTo(1);
-        KamisCollectResponse second = collector.collectWithReport(TODAY, true);
-
-        assertThat(second.skipped()).isTrue();
-        assertThat(second.skipReason()).isEqualTo(KamisCollectResponse.SKIP_COOLDOWN);
-        // 두 번째 호출은 외부를 한 번도 부르지 않아야 한다 — 할당량이 여기서 마른다.
-        verify(client).fetchLatest(lettuceCode, TODAY);
-    }
-
-    @Test
     @DisplayName("정기 배치는 수동 수집 간격에 걸리지 않는다")
     void the_daily_batch_ignores_the_manual_cooldown() {
         KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
@@ -170,6 +155,56 @@ class KamisPriceCollectorTest {
         collector.collectWithReport(TODAY, true);
 
         assertThat(collector.collectWithReport(TODAY).updated()).isEqualTo(1);
+    }
+
+    // 쿨다운을 먼저 보면 도는 중에 들어온 요청이 COOLDOWN 으로 나가, 아직 실행 중인 작업을
+    // "조금 전에 다 받아왔다"로 잘못 알린다. 순서를 테스트로 고정한다(#129 리뷰).
+    @Test
+    @DisplayName("수집이 도는 중에 들어온 수동 요청은 쿨다운이 아니라 실행 중으로 답한다")
+    void a_request_during_a_running_collection_reports_already_running() throws Exception {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+
+        CountDownLatch collecting = new CountDownLatch(1);   // 수집이 외부 호출에 들어갔다
+        CountDownLatch release = new CountDownLatch(1);      // 두 번째 요청이 끝났으니 놓아 준다
+        given(client.fetchLatest(lettuceCode, TODAY)).willAnswer(invocation -> {
+            collecting.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return found(lettucePrice);
+        });
+
+        // 쿨다운을 넉넉히 둬야 "쿨다운이 먼저 걸리는" 잘못된 순서가 드러난다.
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
+        CompletableFuture<KamisCollectResponse> first =
+                CompletableFuture.supplyAsync(() -> collector.collectWithReport(TODAY, true));
+
+        assertThat(collecting.await(5, TimeUnit.SECONDS)).isTrue();
+        KamisCollectResponse second = collector.collectWithReport(TODAY, true);
+        release.countDown();
+
+        assertThat(second.skipped()).isTrue();
+        assertThat(second.skipReason()).isEqualTo(KamisCollectResponse.SKIP_ALREADY_RUNNING);
+        assertThat(first.get(5, TimeUnit.SECONDS).updated()).isEqualTo(1);
+        // 두 번째 요청은 외부를 부르지 않았다 — 첫 수집의 1회뿐이다.
+        verify(client).fetchLatest(lettuceCode, TODAY);
+    }
+
+    // 수집이 끝난 뒤에는 같은 요청이 쿨다운으로 걸려야 한다. 위 순서 변경이 쿨다운을
+    // 무력화하지 않았는지 함께 본다.
+    @Test
+    @DisplayName("수집이 끝난 뒤 들어온 수동 요청은 쿨다운으로 답한다")
+    void a_request_after_a_finished_collection_reports_cooldown() {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
+
+        collector.collectWithReport(TODAY, true);
+        KamisCollectResponse second = collector.collectWithReport(TODAY, true);
+
+        assertThat(second.skipReason()).isEqualTo(KamisCollectResponse.SKIP_COOLDOWN);
     }
 
     @Test

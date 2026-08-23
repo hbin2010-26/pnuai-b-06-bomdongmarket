@@ -67,13 +67,20 @@ public class KamisPriceCollector {
             log.info("KAMIS 수동 수집 건너뜀 — 설정에서 꺼져 있습니다.");
             return KamisCollectResponse.skipped(today, KamisCollectResponse.SKIP_DISABLED);
         }
+        // 실행 중 여부를 쿨다운보다 먼저 본다. 수집을 시작하면서 곧바로 시작 시각을 찍기 때문에,
+        // 순서를 바꾸면 도는 중에 들어온 요청이 전부 COOLDOWN 으로 나간다. 그러면 아직 돌고 있는
+        // 작업을 "조금 전에 다 받아왔다"로 잘못 알리게 된다(#129 리뷰).
+        if (running.get()) {
+            log.info("KAMIS 수집이 이미 실행 중이라 건너뜁니다.");
+            return KamisCollectResponse.skipped(today, KamisCollectResponse.SKIP_ALREADY_RUNNING);
+        }
         if (manual && withinCooldown()) {
             log.info("KAMIS 수동 수집 건너뜀 — 직전 수집 후 {}초가 지나지 않았습니다.",
                     properties.manualCooldownSeconds());
             return KamisCollectResponse.skipped(today, KamisCollectResponse.SKIP_COOLDOWN);
         }
+        // 위 검사와 여기 사이에 다른 요청이 먼저 들어갔을 수 있다. 실제 진입은 CAS 가 정한다.
         if (!running.compareAndSet(false, true)) {
-            // 이미 돌고 있으면 같은 일을 두 번 하지 않는다. 건너뛴 것으로 알린다.
             log.info("KAMIS 수집이 이미 실행 중이라 건너뜁니다.");
             return KamisCollectResponse.skipped(today, KamisCollectResponse.SKIP_ALREADY_RUNNING);
         }
