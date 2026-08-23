@@ -25,6 +25,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -32,6 +33,11 @@ public class AuthService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
+
+        // 프론트가 인증 단계를 건너뛰고 이 API를 바로 호출할 수 있으므로 서버가 다시 확인한다.
+        // 확인과 동시에 인증 기록을 소모(삭제)해 같은 인증으로 두 번 가입하는 경로를 막는다.
+        // 같은 트랜잭션이라 아래 저장이 실패하면 삭제도 함께 롤백된다.
+        emailVerificationService.consumeVerified(request.getEmail());
 
         // 비밀번호 BCrypt 해싱 — 평문을 DB에 저장하지 않는다
         String encodedPassword = passwordEncoder.encode(request.getPassword());

@@ -2,6 +2,7 @@ package com.farmbroker.farmbroker.auth.controller;
 
 import com.farmbroker.farmbroker.auth.dto.LoginResponse;
 import com.farmbroker.farmbroker.auth.service.AuthService;
+import com.farmbroker.farmbroker.auth.service.EmailVerificationService;
 import com.farmbroker.farmbroker.security.AuthCookieProvider;
 import com.farmbroker.farmbroker.security.JwtAuthenticationFilter;
 import com.farmbroker.farmbroker.security.JwtTokenProvider;
@@ -55,6 +56,10 @@ class AuthCookieContractTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    // AuthController가 생성자로 주입받으므로 이 테스트에서 쓰지 않아도 빈이 있어야 컨텍스트가 뜬다.
+    @MockitoBean
+    private EmailVerificationService emailVerificationService;
 
     @BeforeEach
     void allowActiveUserTokens() {
