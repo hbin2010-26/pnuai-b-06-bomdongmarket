@@ -254,6 +254,26 @@ export interface ProfitEstimateInput {
   cropNames?: string[];
 }
 
+// KAMIS 시세 수동 수집 결과입니다.
+export interface KamisCollectResult {
+  collectedFor: string;
+  // 서비스 키가 없거나 이미 수집이 돌고 있으면 true 입니다.
+  skipped: boolean;
+  updated: number;
+  missing: number;
+  failed: number;
+  items: KamisCollectItem[];
+}
+
+export interface KamisCollectItem {
+  cropName: string;
+  // UPDATED=갱신, MISSING=조사 없음(비제철 등), FAILED=저장 실패
+  status: string;
+  pricePerKgKrw: number | null;
+  surveyedOn: string | null;
+  sampleCount: number | null;
+}
+
 // 수익 계산에 쓸 수 있는 작물 하나와 그 값의 출처입니다.
 // 재배 파라미터가 아직 추정값이라, 숫자만 보여 주면 실측처럼 읽혀 출처를 함께 받습니다.
 export interface ProfitCrop {
