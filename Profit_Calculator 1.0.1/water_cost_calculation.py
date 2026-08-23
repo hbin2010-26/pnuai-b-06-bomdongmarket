@@ -15,7 +15,8 @@ def calculate_water_cost(
 
     배액률은 ``배액량 / 작물 관수량``으로 정의한다. 따라서 작물이
     실제로 소비한 증발산량을 ``1 - 배액률``로 나누어 배액을 포함한
-    작물 관수량을 구한다.
+    작물 관수량을 구한다. 이 관수량은 재료비 단계의 월 양액량에도
+    그대로 전달하여 수도비와 양액비가 같은 기준을 사용하게 한다.
     """
     crop_evapotranspiration_l = float(
         humidity_result["monthly_evapotranspiration_kg"]
