@@ -325,6 +325,30 @@ describe('ContractPage', () => {
     expect(screen.queryByText('동의 대기')).not.toBeInTheDocument();
   });
 
+  // 취소는 이미 받아 둔 동의를 지우지 않습니다 — 배지가 동의를 먼저 보면
+  // 정작 취소를 누른 쪽이 '동의 완료'로 남아 어느 행에도 취소가 뜨지 않습니다.
+  it('동의한 당사자가 직접 취소하면 그 쪽에 취소가 표시된다', async () => {
+    const user = userEvent.setup();
+    renderPage({ viewerRole: 'OWNER', ...savedTerms });
+
+    await user.click(await screen.findByRole('button', { name: '계약' }));
+    await user.click(screen.getByRole('button', { name: '계약 동의' }));
+    expect(await screen.findByRole('button', { name: '동의 완료' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: '계약 취소' }));
+    await user.click(
+      screen.getAllByRole('button', { name: '계약 취소' }).at(-1) as HTMLElement,
+    );
+
+    expect(await screen.findByText('이 계약은 취소되었습니다.')).toBeInTheDocument();
+    const agreements = screen.getByText('동의 현황').parentElement as HTMLElement;
+    const ownerRow = within(agreements).getByText('옥상건물주').closest('li') as HTMLElement;
+    expect(within(ownerRow).getByText('계약 취소')).toBeInTheDocument();
+    // 상대는 취소 직전의 상태를 그대로 둡니다.
+    expect(within(agreements).getAllByText('계약 취소')).toHaveLength(1);
+    expect(within(agreements).getByText('동의 대기')).toBeInTheDocument();
+  });
+
   // 확정에 밀려 자동 거절된 신청은 누군가 누른 게 아니라 취소자가 없습니다.
   it('취소한 사람을 모르는 계약은 양쪽에 취소로 표시한다', async () => {
     renderPage({

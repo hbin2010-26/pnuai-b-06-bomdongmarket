@@ -416,11 +416,13 @@ interface AgreementRowProps {
 
 // 색만으로 상태를 구분하지 않도록 배지 안에 문구를 함께 넣습니다.
 // 취소된 계약에서는 더 기다릴 동의가 없으므로 '동의 대기' 대신 취소를 알립니다.
+// 취소를 동의보다 먼저 봅니다 — 취소는 동의를 지우지 않으므로, 동의한 당사자가 직접 취소하면
+// 동의 상태가 그대로 남아 순서를 뒤집으면 정작 누른 쪽이 '동의 완료'로 보입니다.
 function AgreementRow({ agreed, canceled, label }: AgreementRowProps) {
-  const badge = agreed
-    ? { tone: 'green' as const, text: '동의 완료' }
-    : canceled
-      ? { tone: 'red' as const, text: '계약 취소' }
+  const badge = canceled
+    ? { tone: 'red' as const, text: '계약 취소' }
+    : agreed
+      ? { tone: 'green' as const, text: '동의 완료' }
       : { tone: 'slate' as const, text: '동의 대기' };
 
   return (
