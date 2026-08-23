@@ -7,20 +7,17 @@ import { formatNumber } from '@/utils/format';
 // 서버 SpaceInputs 의 표준 가정값·허용 범위와 같은 값입니다. 어긋나면 화면에서 넣은 값이
 // 서버 검증에 걸립니다.
 export const FACILITY_DEFAULTS = {
-  cultivableRatio: 0.6,
-  moduleLayers: 4,
+  cultivableRatio: 0.65,
   ceilingHeightM: 2.5,
 } as const;
 
 const LIMITS = {
   cultivableRatio: { min: 0.1, max: 1, step: 0.05 },
-  moduleLayers: { min: 1, max: 10, step: 1 },
   ceilingHeightM: { min: 1.5, max: 10, step: 0.1 },
 } as const;
 
 export interface FacilityAssumptions {
   cultivableRatio: number;
-  moduleLayers: number;
   ceilingHeightM: number;
 }
 
@@ -42,7 +39,6 @@ export function FacilityAssumptionCard({
 }: FacilityAssumptionCardProps) {
   const isDefault =
     value.cultivableRatio === FACILITY_DEFAULTS.cultivableRatio &&
-    value.moduleLayers === FACILITY_DEFAULTS.moduleLayers &&
     value.ceilingHeightM === FACILITY_DEFAULTS.ceilingHeightM;
 
   return (
@@ -71,7 +67,9 @@ export function FacilityAssumptionCard({
         ) : null}
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+      {/* 다단 층 수는 작물마다 정해져 있어(상추 4단·딸기 2단) 여기서 고르지 않습니다.
+          작물별 값은 계산 결과의 '계산 근거'에 그대로 나옵니다. */}
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1">
           <span className="text-xs font-semibold text-content-subtle">
             재배 가능 바닥 비율
@@ -91,26 +89,6 @@ export function FacilityAssumptionCard({
           />
           <span className="text-xs text-content-subtle">
             통로·설비를 뺀 비율 · 현재 {formatNumber(Math.round(value.cultivableRatio * 100))}%
-          </span>
-        </label>
-
-        <label className="grid gap-1">
-          <span className="text-xs font-semibold text-content-subtle">다단 재배대 층 수</span>
-          <input
-            aria-label="다단 재배대 층 수"
-            className="min-h-control rounded-app border border-line px-3 text-base font-bold text-content"
-            disabled={disabled}
-            max={LIMITS.moduleLayers.max}
-            min={LIMITS.moduleLayers.min}
-            onChange={(event) =>
-              onChange({ ...value, moduleLayers: Number(event.target.value) })
-            }
-            step={LIMITS.moduleLayers.step}
-            type="number"
-            value={value.moduleLayers}
-          />
-          <span className="text-xs text-content-subtle">
-            1~{LIMITS.moduleLayers.max}층 · 층이 늘면 재배면적도 늘어납니다
           </span>
         </label>
 

@@ -21,7 +21,7 @@ export function useSpaceRegistration(input: SpaceCreateInput) {
   const [facility, setFacility] = useState<FacilityAssumptions>({ ...FACILITY_DEFAULTS });
 
   const { area, monthlyRent } = input;
-  const { cultivableRatio, moduleLayers, ceilingHeightM } = facility;
+  const { cultivableRatio, ceilingHeightM } = facility;
 
   const loadPrediction = useCallback(async () => {
     setPredictionStatus('loading');
@@ -31,7 +31,6 @@ export function useSpaceRegistration(input: SpaceCreateInput) {
         area,
         monthlyRent,
         cultivableRatio,
-        moduleLayers,
         ceilingHeightM,
       });
       setEstimates(result);
@@ -39,7 +38,7 @@ export function useSpaceRegistration(input: SpaceCreateInput) {
     } catch {
       setPredictionStatus('error');
     }
-  }, [area, monthlyRent, cultivableRatio, moduleLayers, ceilingHeightM]);
+  }, [area, monthlyRent, cultivableRatio, ceilingHeightM]);
 
   const submit = useCallback(async () => {
     setSaveStatus('loading');

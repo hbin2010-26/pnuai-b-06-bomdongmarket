@@ -89,8 +89,8 @@ class CropCultivationParamMigrationTest {
             assertThat(saved.getTargetTemperatureC()).isEqualTo(csv.targetTemperatureC());
             assertThat(saved.getTargetRelativeHumidity()).isEqualTo(csv.targetRelativeHumidity());
             assertThat(saved.getDailyEvapotranspirationMm()).isEqualTo(csv.dailyEvapotranspirationMm());
-            assertThat(saved.getMaterialCostPerM2CycleKrw()).isEqualTo(csv.materialCostPerM2CycleKrw());
-            assertThat(saved.getOtherMaterialCostMonthKrw()).isEqualTo(csv.otherMaterialCostMonthKrw());
+            assertThat(saved.getSeedlingCostPerM2MonthKrw()).isEqualTo(csv.seedlingCostPerM2MonthKrw());
+            assertThat(saved.getModuleLayers()).isEqualTo(csv.moduleLayers());
         }
     }
 

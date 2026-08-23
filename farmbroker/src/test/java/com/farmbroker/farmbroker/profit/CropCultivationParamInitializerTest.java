@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 // 보이고, 스프링 컨텍스트를 띄우지 않고 CSV 를 읽으려면 그 메서드를 직접 불러야 한다.
 class CropCultivationParamInitializerTest {
 
-    private static final String CURRENT_SOURCE_ID = "PROFIT_CALCULATOR_CSV_0_3_1";
+    private static final String CURRENT_SOURCE_ID = "PROFIT_CALCULATOR_CSV_1_0_1";
 
     private CropCultivationParamRepository repository;
     private ProfitReferenceData referenceData;
@@ -92,7 +92,7 @@ class CropCultivationParamInitializerTest {
     @Test
     @DisplayName("시드 버전이 올라가면 추정값 행은 CSV 값으로 갱신한다")
     void refreshesOutdatedSeedRows() {
-        CropCultivationParam outdated = seedRow("상추", "PROFIT_CALCULATOR_CSV_0_2_0", 1.23);
+        CropCultivationParam outdated = seedRow("상추", "PROFIT_CALCULATOR_CSV_0_4_1", 1.23);
         when(repository.findByCropName(anyString()))
                 .thenAnswer(invocation -> "상추".equals(invocation.getArgument(0))
                         ? Optional.of(outdated)
@@ -128,6 +128,7 @@ class CropCultivationParamInitializerTest {
     private CropCultivationParam row(String cropName, String sourceId, String dataStatus, double yield) {
         return CropCultivationParam.builder()
                 .cropName(cropName)
+                .moduleLayers(4.0)
                 .yieldPerCycleKgM2(yield)
                 .cyclesPerMonth(1.0)
                 .marketableRate(0.9)
@@ -136,8 +137,7 @@ class CropCultivationParamInitializerTest {
                 .targetTemperatureC(20.0)
                 .targetRelativeHumidity(0.7)
                 .dailyEvapotranspirationMm(3.0)
-                .materialCostPerM2CycleKrw(1000.0)
-                .otherMaterialCostMonthKrw(0.0)
+                .seedlingCostPerM2MonthKrw(1000.0)
                 .sourceId(sourceId)
                 .dataStatus(dataStatus)
                 .referenceDate(LocalDate.of(2026, 8, 1))

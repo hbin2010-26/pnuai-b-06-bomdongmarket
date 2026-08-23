@@ -43,8 +43,9 @@ function renderPage() {
   );
 }
 
-// 재배가능비율·층수·천장고는 작물 특성이 아니라 설비 사양이라, 실측 없이는 정할 수 없다.
+// 재배가능비율·천장고는 작물 특성이 아니라 설비 사양이라, 실측 없이는 정할 수 없다.
 // 지금까지 코드에 박힌 임의값이었고 화면에서 바꿀 수 없었다(#99).
+// 다단 층 수는 1.0.1 부터 작물이 정하므로 여기서 고르지 않는다.
 describe('설비 조건 조절', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,27 +61,34 @@ describe('설비 조건 조절', () => {
       expect(getProfitEstimates).toHaveBeenCalledWith({
         area: 66,
         monthlyRent: 500000,
-        cultivableRatio: 0.6,
-        moduleLayers: 4,
+        cultivableRatio: 0.65,
         ceilingHeightM: 2.5,
       }),
     );
-    expect(await screen.findByLabelText('다단 재배대 층 수')).toHaveValue(4);
+    expect(await screen.findByLabelText('재배 가능 바닥 비율')).toHaveValue(0.65);
   });
 
-  it('층수를 바꾸면 그 값으로 다시 계산한다', async () => {
+  it('천장고를 바꾸면 그 값으로 다시 계산한다', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    const layers = await screen.findByLabelText('다단 재배대 층 수');
-    await user.clear(layers);
-    await user.type(layers, '6');
+    const ceiling = await screen.findByLabelText('천장고');
+    await user.clear(ceiling);
+    await user.type(ceiling, '3.5');
 
     await waitFor(() =>
       expect(getProfitEstimates).toHaveBeenLastCalledWith(
-        expect.objectContaining({ moduleLayers: 6 }),
+        expect.objectContaining({ ceilingHeightM: 3.5 }),
       ),
     );
+  });
+
+  // 층 수는 작물이 정하므로 사용자가 고를 값이 아니다.
+  it('다단 층 수는 조절 항목으로 두지 않는다', async () => {
+    renderPage();
+
+    await screen.findByLabelText('재배 가능 바닥 비율');
+    expect(screen.queryByLabelText('다단 재배대 층 수')).not.toBeInTheDocument();
   });
 
   it('표준 가정값과 달라지면 되돌리는 버튼이 나온다', async () => {
@@ -98,6 +106,6 @@ describe('설비 조건 조절', () => {
     const reset = await screen.findByRole('button', { name: '표준 가정값으로' });
     await user.click(reset);
 
-    await waitFor(() => expect(ratio).toHaveValue(0.6));
+    await waitFor(() => expect(ratio).toHaveValue(0.65));
   });
 });

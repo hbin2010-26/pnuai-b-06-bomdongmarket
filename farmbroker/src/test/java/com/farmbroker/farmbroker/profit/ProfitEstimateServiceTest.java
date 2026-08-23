@@ -65,8 +65,8 @@ class ProfitEstimateServiceTest {
         ProfitEstimateResponse best = service.estimate(request(164, 1_200_000)).get(0);
 
         assertEquals("딸기", best.cropName());
-        assertEquals(16_472_160L, best.monthlyRevenueKrw());
-        assertEquals(3_424_966L, best.landlordExpectedIncomeKrw());
+        assertEquals(11_512_800L, best.monthlyRevenueKrw());
+        assertEquals(2_973_302L, best.landlordExpectedIncomeKrw());
         assertEquals(1_200_000L, best.desiredMonthlyRentKrw());
         assertEquals("장기계약형", best.contractType());
     }
@@ -76,8 +76,10 @@ class ProfitEstimateServiceTest {
         ProfitEstimateResponse best = service.estimate(request(66, 500_000)).get(0);
 
         assertEquals(66.0, best.totalAreaM2());
-        assertEquals(60, best.areaUtilizationPercent());
-        assertEquals(4, best.moduleLayers());
+        // 1.0.1 은 모든 공간에 재배가능비율 0.65 를 쓴다.
+        assertEquals(65, best.areaUtilizationPercent());
+        // 단수는 공간 가정값이 아니라 작물 속성이다 — 여기서 1위인 딸기는 2단.
+        assertEquals(2.0, best.moduleLayers());
         assertEquals(2.5, best.ceilingHeightM());
     }
 
@@ -115,14 +117,12 @@ class ProfitEstimateServiceTest {
         ProfitEstimateRequest request = request(66, 500_000);
         ReflectionTestUtils.setField(request, "cropNames", List.of("상추"));
         ReflectionTestUtils.setField(request, "cultivableRatio", BigDecimal.valueOf(0.8));
-        ReflectionTestUtils.setField(request, "moduleLayers", 6);
         ReflectionTestUtils.setField(request, "ceilingHeightM", BigDecimal.valueOf(3.5));
 
         ProfitEstimateResponse custom = service.estimate(request).get(0);
 
         assertEquals(0.8, custom.cultivableRatio());
         assertEquals(80, custom.areaUtilizationPercent());
-        assertEquals(6, custom.moduleLayers());
         assertEquals(3.5, custom.ceilingHeightM());
 
         ProfitEstimateRequest standard = request(66, 500_000);
@@ -139,7 +139,6 @@ class ProfitEstimateServiceTest {
         ProfitEstimateResponse result = service.estimate(request(66, 500_000)).get(0);
 
         assertEquals(SpaceInputs.DEFAULT_CULTIVABLE_RATIO, result.cultivableRatio());
-        assertEquals(SpaceInputs.DEFAULT_MODULE_LAYERS, result.moduleLayers());
         assertEquals(SpaceInputs.DEFAULT_CEILING_HEIGHT_M, result.ceilingHeightM());
     }
 }

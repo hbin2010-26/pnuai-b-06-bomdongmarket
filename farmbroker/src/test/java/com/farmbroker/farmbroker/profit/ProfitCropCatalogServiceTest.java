@@ -81,6 +81,7 @@ class ProfitCropCatalogServiceTest {
     private CropCultivationParam row(String cropName, String dataStatus, String sourceId) {
         return CropCultivationParam.builder()
                 .cropName(cropName)
+                .moduleLayers(4.0)
                 .yieldPerCycleKgM2(3.0)
                 .cyclesPerMonth(1.0)
                 .marketableRate(0.9)
@@ -89,8 +90,7 @@ class ProfitCropCatalogServiceTest {
                 .targetTemperatureC(20.0)
                 .targetRelativeHumidity(0.7)
                 .dailyEvapotranspirationMm(3.0)
-                .materialCostPerM2CycleKrw(1000.0)
-                .otherMaterialCostMonthKrw(0.0)
+                .seedlingCostPerM2MonthKrw(1000.0)
                 .sourceId(sourceId)
                 .dataStatus(dataStatus)
                 .referenceDate(LocalDate.of(2026, 8, 1))

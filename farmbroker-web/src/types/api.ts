@@ -203,6 +203,7 @@ export interface ProfitEstimate {
   totalAreaM2: number;
   cultivableRatio: number;
   areaUtilizationPercent: number;
+  // 1.0.1 부터 다단 층 수는 작물 속성입니다 — 상추 4단, 딸기 2단.
   moduleLayers: number;
   ceilingHeightM: number;
   availableFloorAreaM2: number;
@@ -220,9 +221,15 @@ export interface ProfitEstimate {
   // 비용
   electricityCostKrw: number;
   waterCostKrw: number;
+  // 재료비는 모종비와 양액비로 나뉩니다.
+  seedlingCostKrw: number;
+  nutrientSolutionL: number;
+  nutrientCostKrw: number;
   materialCostKrw: number;
   laborCostKrw: number;
-  depreciationAndOtherCostKrw: number;
+  // 설비는 빌려 쓰는 것으로 잡습니다 — 사용가능 바닥면적 기준 월 대여비.
+  equipmentRentalCostKrw: number;
+  otherCostKrw: number;
   monthlyOperatingCostKrw: number;
   // 손익·배분·계약 추천
   monthlyOperatingProfitKrw: number;
@@ -242,7 +249,6 @@ export interface ProfitEstimateInput {
   monthlyRent: number;
   // 설비 값입니다. 비우면 서버가 표준 가정값(0.6 / 4층 / 2.5m)을 씁니다.
   cultivableRatio?: number;
-  moduleLayers?: number;
   ceilingHeightM?: number;
   // 특정 작물만 계산할 때 지정합니다. 비우면 계산 가능한 작물 전체가 배분수익 순으로 옵니다.
   cropNames?: string[];

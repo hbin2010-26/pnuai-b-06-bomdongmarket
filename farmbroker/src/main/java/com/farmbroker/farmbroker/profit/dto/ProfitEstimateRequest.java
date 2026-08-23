@@ -36,7 +36,6 @@ public class ProfitEstimateRequest {
     private static final String MSG_RENT_REQUIRED = "월세는 필수입니다.";
     private static final String MSG_RENT_MIN = "월세는 0 이상이어야 합니다.";
     private static final String MSG_RATIO_RANGE = "재배 가능 비율은 0.1 이상 1.0 이하여야 합니다.";
-    private static final String MSG_LAYERS_RANGE = "다단 층 수는 1 이상 10 이하여야 합니다.";
     private static final String MSG_CEILING_RANGE = "천장고는 1.5m 이상 10m 이하여야 합니다.";
     private static final String MSG_CROPS_SIZE = "작물은 30개까지 지정할 수 있습니다.";
 
@@ -50,16 +49,11 @@ public class ProfitEstimateRequest {
     @Min(value = RENT_MIN, message = MSG_RENT_MIN)
     private Integer monthlyRent;
 
-    @Schema(description = "통로·설비를 뺀 재배 가능 바닥 비율(0.1~1.0). 비우면 표준 가정값 0.6",
-            example = "0.6", nullable = true)
+    @Schema(description = "통로·설비를 뺀 재배 가능 바닥 비율(0.1~1.0). 비우면 표준 가정값 0.65",
+            example = "0.65", nullable = true)
     @DecimalMin(value = "0.1", message = MSG_RATIO_RANGE)
     @DecimalMax(value = "1.0", message = MSG_RATIO_RANGE)
     private BigDecimal cultivableRatio;
-
-    @Schema(description = "다단 재배대 층 수(1~10). 비우면 표준 가정값 4", example = "4", nullable = true)
-    @Min(value = 1, message = MSG_LAYERS_RANGE)
-    @Max(value = 10, message = MSG_LAYERS_RANGE)
-    private Integer moduleLayers;
 
     @Schema(description = "천장고(m, 1.5~10). 비우면 표준 가정값 2.5", example = "2.5", nullable = true)
     @DecimalMin(value = "1.5", message = MSG_CEILING_RANGE)
@@ -77,7 +71,6 @@ public class ProfitEstimateRequest {
                 area.doubleValue(),
                 monthlyRent,
                 cultivableRatio != null ? cultivableRatio.doubleValue() : null,
-                moduleLayers,
                 ceilingHeightM != null ? ceilingHeightM.doubleValue() : null);
     }
 }

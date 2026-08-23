@@ -35,7 +35,7 @@ public class CropCultivationParamInitializer implements ApplicationRunner {
 
     // CSV 는 원본 계산기 프로젝트에서 그대로 옮겨온 추정값이다.
     // CSV 값을 손보면 이 문자열도 함께 올려야 기존 추정값 행이 갱신된다.
-    private static final String SOURCE_ID = "PROFIT_CALCULATOR_CSV_0_3_1";
+    private static final String SOURCE_ID = "PROFIT_CALCULATOR_CSV_1_0_1";
     private static final String DATA_STATUS = CropCultivationParam.SEED_DATA_STATUS;
     private static final LocalDate REFERENCE_DATE = LocalDate.of(2026, 7, 4);
     private static final String REMARKS = "crop_production_info.csv 에서 이관한 추정값 — 작물별 자료 조사로 보완 필요";
@@ -80,6 +80,7 @@ public class CropCultivationParamInitializer implements ApplicationRunner {
         ProfitReferenceData.CropProduction crop = referenceData.cropProduction(cropName);
         return CropCultivationParam.builder()
                 .cropName(cropName)
+                .moduleLayers(crop.moduleLayers())
                 .yieldPerCycleKgM2(crop.yieldPerCycleKgM2())
                 .cyclesPerMonth(crop.cyclesPerMonth())
                 .marketableRate(crop.marketableRate())
@@ -88,8 +89,7 @@ public class CropCultivationParamInitializer implements ApplicationRunner {
                 .targetTemperatureC(crop.targetTemperatureC())
                 .targetRelativeHumidity(crop.targetRelativeHumidity())
                 .dailyEvapotranspirationMm(crop.dailyEvapotranspirationMm())
-                .materialCostPerM2CycleKrw(crop.materialCostPerM2CycleKrw())
-                .otherMaterialCostMonthKrw(crop.otherMaterialCostMonthKrw())
+                .seedlingCostPerM2MonthKrw(crop.seedlingCostPerM2MonthKrw())
                 .sourceId(SOURCE_ID)
                 .dataStatus(DATA_STATUS)
                 .referenceDate(REFERENCE_DATE)

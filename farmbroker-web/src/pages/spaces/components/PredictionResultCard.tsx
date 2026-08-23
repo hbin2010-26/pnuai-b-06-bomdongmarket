@@ -26,14 +26,18 @@ export function PredictionResultCard({ estimates }: PredictionResultCardProps) {
   const costs = [
     { label: '전기비', value: best.electricityCostKrw },
     { label: '수도비', value: best.waterCostKrw },
-    { label: '재료비', value: best.materialCostKrw },
+    // 재료비는 모종비와 양액비로 나뉩니다 — 어느 쪽이 큰지가 작물마다 크게 다릅니다.
+    { label: '모종비', value: best.seedlingCostKrw },
+    { label: '양액비', value: best.nutrientCostKrw },
     { label: '인건비', value: best.laborCostKrw },
-    { label: '감가상각 등', value: best.depreciationAndOtherCostKrw },
+    { label: '기기 대여비', value: best.equipmentRentalCostKrw },
+    { label: '기타비용', value: best.otherCostKrw },
   ];
 
   const basis = [
     { label: '면적 활용률', value: `${formatNumber(best.areaUtilizationPercent)}%` },
-    { label: '다단 재배대', value: `${formatNumber(best.moduleLayers)}층` },
+    // 단수는 공간이 아니라 작물이 정합니다 — 상추 4단, 딸기 2단.
+    { label: '다단 재배대', value: `${formatNumber(best.moduleLayers)}층 (작물 기준)` },
     { label: '총 재배면적', value: formatArea(best.cultivationAreaM2) },
     {
       label: '월평균 전력량',
@@ -109,7 +113,8 @@ export function PredictionResultCard({ estimates }: PredictionResultCardProps) {
       <div className="mt-6 rounded-app border border-line bg-surface p-4">
         <h3 className="font-bold text-content">계산 근거</h3>
         <p className="mt-2 text-body-sm text-content-muted">
-          재배 가능 비율, 다단 층수, 천장고는 실측값이 없어 표준 가정값을 사용한 추정치입니다.
+          재배 가능 비율과 천장고는 실측값이 없어 표준 가정값을 사용한 추정치입니다.
+          다단 층수는 작물별 재배 조건에서 옵니다.
         </p>
         <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           {basis.map((item) => (

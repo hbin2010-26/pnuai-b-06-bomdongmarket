@@ -44,6 +44,7 @@ public class DbCropProductionProvider implements CropProductionProvider {
 
     private static ProfitReferenceData.CropProduction toRecord(CropCultivationParam param) {
         return new ProfitReferenceData.CropProduction(
+                param.getModuleLayers(),
                 param.getYieldPerCycleKgM2(),
                 param.getCyclesPerMonth(),
                 param.getMarketableRate(),
@@ -52,7 +53,6 @@ public class DbCropProductionProvider implements CropProductionProvider {
                 param.getTargetTemperatureC(),
                 param.getTargetRelativeHumidity(),
                 param.getDailyEvapotranspirationMm(),
-                param.getMaterialCostPerM2CycleKrw(),
-                param.getOtherMaterialCostMonthKrw());
+                param.getSeedlingCostPerM2MonthKrw());
     }
 }

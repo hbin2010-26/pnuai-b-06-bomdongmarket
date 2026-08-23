@@ -36,6 +36,10 @@ public class CropCultivationParam {
     @Column(nullable = false, unique = true, length = 50)
     private String cropName;
 
+    // 1.0.1 부터 다단 층 수가 작물 속성이다 — 상추 4단, 딸기 2단처럼 작물마다 다르다.
+    @Column(nullable = false)
+    private Double moduleLayers;
+
     @Column(nullable = false)
     private Double yieldPerCycleKgM2;
 
@@ -60,11 +64,9 @@ public class CropCultivationParam {
     @Column(nullable = false)
     private Double dailyEvapotranspirationMm;
 
+    // 1회 단가가 아니라 월 환산 단가다. 양액비는 증발산량에서 계산하므로 여기 두지 않는다.
     @Column(nullable = false)
-    private Double materialCostPerM2CycleKrw;
-
-    @Column(nullable = false)
-    private Double otherMaterialCostMonthKrw;
+    private Double seedlingCostPerM2MonthKrw;
 
     // ── 근거 ──
     // 어느 자료에서 온 값인지 가리키는 식별자(원본 프로젝트의 source_id 규칙을 따른다).
@@ -82,13 +84,15 @@ public class CropCultivationParam {
     private String remarks;
 
     @Builder
-    private CropCultivationParam(String cropName, Double yieldPerCycleKgM2, Double cyclesPerMonth,
+    private CropCultivationParam(String cropName, Double moduleLayers, Double yieldPerCycleKgM2,
+                                 Double cyclesPerMonth,
                                  Double marketableRate, Double requiredPpfdUmolM2S, Double lightingHoursDay,
                                  Double targetTemperatureC, Double targetRelativeHumidity,
-                                 Double dailyEvapotranspirationMm, Double materialCostPerM2CycleKrw,
-                                 Double otherMaterialCostMonthKrw, String sourceId, String dataStatus,
+                                 Double dailyEvapotranspirationMm, Double seedlingCostPerM2MonthKrw,
+                                 String sourceId, String dataStatus,
                                  LocalDate referenceDate, String remarks) {
         this.cropName = cropName;
+        this.moduleLayers = moduleLayers;
         this.yieldPerCycleKgM2 = yieldPerCycleKgM2;
         this.cyclesPerMonth = cyclesPerMonth;
         this.marketableRate = marketableRate;
@@ -97,8 +101,7 @@ public class CropCultivationParam {
         this.targetTemperatureC = targetTemperatureC;
         this.targetRelativeHumidity = targetRelativeHumidity;
         this.dailyEvapotranspirationMm = dailyEvapotranspirationMm;
-        this.materialCostPerM2CycleKrw = materialCostPerM2CycleKrw;
-        this.otherMaterialCostMonthKrw = otherMaterialCostMonthKrw;
+        this.seedlingCostPerM2MonthKrw = seedlingCostPerM2MonthKrw;
         this.sourceId = sourceId;
         this.dataStatus = dataStatus;
         this.referenceDate = referenceDate;
@@ -117,6 +120,7 @@ public class CropCultivationParam {
     // 같은 작물의 값을 시드 기준으로 다시 채운다.
     // 새 엔티티를 만들어 그 값을 옮겨 담는 식이라, 파라미터가 늘어도 고칠 곳이 여기 한 군데다.
     public void replaceValuesFrom(CropCultivationParam seed) {
+        this.moduleLayers = seed.moduleLayers;
         this.yieldPerCycleKgM2 = seed.yieldPerCycleKgM2;
         this.cyclesPerMonth = seed.cyclesPerMonth;
         this.marketableRate = seed.marketableRate;
@@ -125,8 +129,7 @@ public class CropCultivationParam {
         this.targetTemperatureC = seed.targetTemperatureC;
         this.targetRelativeHumidity = seed.targetRelativeHumidity;
         this.dailyEvapotranspirationMm = seed.dailyEvapotranspirationMm;
-        this.materialCostPerM2CycleKrw = seed.materialCostPerM2CycleKrw;
-        this.otherMaterialCostMonthKrw = seed.otherMaterialCostMonthKrw;
+        this.seedlingCostPerM2MonthKrw = seed.seedlingCostPerM2MonthKrw;
         this.sourceId = seed.sourceId;
         this.dataStatus = seed.dataStatus;
         this.referenceDate = seed.referenceDate;
