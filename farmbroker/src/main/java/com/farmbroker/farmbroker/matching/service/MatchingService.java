@@ -1,7 +1,9 @@
 package com.farmbroker.farmbroker.matching.service;
 
+import com.farmbroker.farmbroker.chat.service.ChatBlockService;
 import com.farmbroker.farmbroker.common.exception.BusinessException;
 import com.farmbroker.farmbroker.common.exception.ErrorCode;
+import com.farmbroker.farmbroker.matching.domain.ContractParty;
 import com.farmbroker.farmbroker.matching.domain.Matching;
 import com.farmbroker.farmbroker.matching.domain.MatchingStatus;
 import com.farmbroker.farmbroker.matching.dto.ContractResponse;
@@ -25,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -43,9 +46,13 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MatchingService {
 
+    // 계약 시작일은 오늘을 가운데 둔 이 폭 안에서만 고를 수 있다 — 프론트 달력의 min/max와 같은 규칙이다.
+    private static final int CONTRACT_START_WINDOW_WEEKS = 2;
+
     private final MatchingRepository matchingRepository;
     private final UserRepository userRepository;
     private final SpaceContractAdapter spaceContractAdapter; // BE2 SpaceService 계약 제공 시 교체
+    private final ChatBlockService chatBlockService; // 차단 여부만 묻는다 — 차단 도메인은 chat 모듈이 갖는다
     private final EntityManager entityManager;
 
     @Transactional
@@ -66,6 +73,12 @@ public class MatchingService {
         if (matchingRepository.existsBySpaceIdAndFarmerIdAndStatus(
                 space.getId(), userId, MatchingStatus.REQUESTED)) {
             throw new BusinessException(ErrorCode.MATCHING_DUPLICATED);
+        }
+        // 거절·취소된 뒤에는 다시 신청할 수 있다. 다시 받고 싶지 않으면 차단하면 된다 —
+        // 차단이 채팅만 막는 표시가 아니라 거래를 거부하는 수단이 되도록 여기서 함께 본다.
+        // 어느 쪽이 차단했든 막는다(내가 차단한 사람의 공간에 신청하는 것도 앞뒤가 맞지 않는다).
+        if (chatBlockService.isBlockedEitherDirection(userId, space.getOwnerId())) {
+            throw new BusinessException(ErrorCode.MATCHING_BLOCKED);
         }
 
         Matching matching = Matching.builder()
@@ -162,7 +175,13 @@ public class MatchingService {
         if (!isContractOwner(matching, userId)) {
             throw new BusinessException(ErrorCode.MATCHING_FORBIDDEN);
         }
-        if (!request.getEndDate().isAfter(request.getStartDate())) {
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = request.getStartDate();
+        if (startDate.isBefore(today.minusWeeks(CONTRACT_START_WINDOW_WEEKS))
+                || startDate.isAfter(today.plusWeeks(CONTRACT_START_WINDOW_WEEKS))) {
+            throw new BusinessException(ErrorCode.CONTRACT_INVALID_START_DATE);
+        }
+        if (!request.getEndDate().isAfter(startDate)) {
             throw new BusinessException(ErrorCode.CONTRACT_INVALID_PERIOD);
         }
 
@@ -227,8 +246,10 @@ public class MatchingService {
     @Transactional
     public ContractResponse cancelContract(Long matchingId, Long userId) {
         Matching matching = getDraftContract(matchingId, userId);
-        matching.reject();
-        return ContractResponse.of(matching, isContractOwner(matching, userId));
+        boolean isOwner = isContractOwner(matching, userId);
+        // 누가 눌렀는지 함께 남긴다 — 동의 현황에서 취소 표시를 누른 쪽에만 붙이는 근거다.
+        matching.reject(isOwner ? ContractParty.OWNER : ContractParty.FARMER);
+        return ContractResponse.of(matching, isOwner);
     }
 
     // 계약서 쓰기 공통 전제: 매칭 존재 → 당사자 본인 → 아직 협의 중(REQUESTED).

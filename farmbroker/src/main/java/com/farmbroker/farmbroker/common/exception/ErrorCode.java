@@ -45,12 +45,15 @@ public enum ErrorCode {
     MATCHING_NOT_PROCESSED(HttpStatus.CONFLICT, "아직 응답하지 않은 매칭 신청입니다."),
     MATCHING_DUPLICATED(HttpStatus.CONFLICT, "이미 신청한 공간입니다."),
     MATCHING_SELF_APPLY(HttpStatus.BAD_REQUEST, "본인 소유 공간에는 신청할 수 없습니다."),
+    // 차단은 채팅만 막는 표시가 아니라 "이 사람과는 거래하지 않겠다"는 뜻으로 쓴다.
+    MATCHING_BLOCKED(HttpStatus.FORBIDDEN, "차단된 사용자와는 매칭을 진행할 수 없습니다."),
 
     // ── contract (매칭 1건에 붙는 계약서) ────────────────────────────────────
     CONTRACT_CLOSED(HttpStatus.CONFLICT, "이미 확정되었거나 취소된 계약입니다."),
     CONTRACT_TERMS_CHANGED(HttpStatus.CONFLICT, "계약 조건이 변경되었습니다. 다시 확인해 주세요."),
     CONTRACT_TERMS_REQUIRED(HttpStatus.BAD_REQUEST, "월세와 계약기간을 먼저 입력해야 합니다."),
     CONTRACT_INVALID_PERIOD(HttpStatus.BAD_REQUEST, "계약 종료일은 시작일보다 뒤여야 합니다."),
+    CONTRACT_INVALID_START_DATE(HttpStatus.BAD_REQUEST, "계약 시작일은 오늘부터 앞뒤 2주 이내여야 합니다."),
 
     // ── ai (소유: 백엔드 3) ──────────────────────────────────────────────────
     AI_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AI 응답 시간이 초과되었습니다."),
@@ -63,10 +66,13 @@ public enum ErrorCode {
     // ── product (로컬마켓) ───────────────────────────────────────────────────
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 상품입니다."),
     NOT_PRODUCT_OWNER(HttpStatus.FORBIDDEN, "본인이 등록한 상품이 아닙니다."),
+    // 계약이 아예 없는 경우도 이 코드다 — "수확일을 품는 계약 기간이 없다"는 사실은 둘이 같다.
+    HARVEST_DATE_OUT_OF_CONTRACT(HttpStatus.BAD_REQUEST, "수확일은 계약 기간 안의 날짜여야 합니다."),
 
     // ── 찜·주문 ──────────────────────────────────────────────────────────────
     WISHLIST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "찜하지 않은 상품입니다."),
     PRODUCT_NOT_ON_SALE(HttpStatus.CONFLICT, "판매 중인 상품이 아닙니다."),
+    ORDER_SELF_PURCHASE(HttpStatus.BAD_REQUEST, "본인이 등록한 상품은 구매할 수 없습니다."),
     OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 부족합니다."),
 
     // ── chat ─────────────────────────────────────────────────────────────────

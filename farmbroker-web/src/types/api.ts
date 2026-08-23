@@ -364,6 +364,9 @@ export interface ContractDetail {
   termsVersion: number;
   ownerAgreed: boolean;
   farmerAgreed: boolean;
+  // 계약을 취소한 쪽. 취소 표시를 누른 사람에게만 붙이는 데 쓴다.
+  // 아직 취소되지 않았거나, 확정에 밀려 자동 거절된 신청은 null이다.
+  canceledBy: ContractParty | null;
   status: MatchingStatus;
   viewerRole: ContractViewerRole;
 }
@@ -409,6 +412,8 @@ export interface MarketItem {
   latitude?: number | null;
   longitude?: number | null;
   // 아래는 상세(GET /products/{id})에서만 추가로 내려오는 필드 — 목록 응답에는 없다.
+  // 내가 등록한 상품인지 판단해 구매 버튼을 감추는 데 씁니다.
+  sellerId?: number;
   sellerNickname?: string;
   description?: string | null;
   spaceId?: number | null;
@@ -517,8 +522,12 @@ export interface Conversation {
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
   unreadCount: number;
-  // 어느 쪽이든 차단하면 true입니다. 입력창을 막는 데 씁니다.
+  // 어느 쪽이든 차단하면 true입니다. 입력창을 막고, 매칭 재신청도 막습니다.
   blocked: boolean;
+  // 공간 문의 대화에 걸린 두 사람 사이의 최근 매칭입니다. 상품 문의에는 없습니다.
+  matchingId?: number | null;
+  // ACCEPTED 일 때만 계약을 쓸 수 있습니다.
+  matchingStatus?: string | null;
 }
 
 export interface ConversationList {
