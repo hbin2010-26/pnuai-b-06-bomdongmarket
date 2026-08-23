@@ -129,14 +129,13 @@ class ProfitCalculationTest(unittest.TestCase):
         result = calculate_material_cost(
             {"cultivation_area_m2": 30.0},
             {
-                "cycles_per_month": 10.0,
                 "seedling_cost_per_m2_month_krw": 5_000.0,
-                "daily_evapotranspiration_mm": 2.0,
             },
+            {"monthly_crop_irrigation_l": 2_000.0},
             {"nutrient_cost_per_l_krw": 20.0},
         )
 
-        expected_nutrient_solution_l = 30.0 * 2.0 * 30.0 * 1.1
+        expected_nutrient_solution_l = 2_000.0
         expected_nutrient_cost = expected_nutrient_solution_l * 20.0
         self.assertEqual(result["monthly_seedling_cost_krw"], 150_000.0)
         self.assertAlmostEqual(
@@ -152,6 +151,42 @@ class ProfitCalculationTest(unittest.TestCase):
         )
         self.assertEqual(result["monthly_seedling_cost_krw"] * 12, 1_800_000.0)
         self.assertEqual(30.0 * 15_000.0 * 4, 1_800_000.0)
+
+    def test_nutrient_solution_reuses_crop_irrigation_and_excludes_other_water(
+        self,
+    ) -> None:
+        water_result = calculate_water_cost(
+            {"total_area_m2": 100.0},
+            {"monthly_evapotranspiration_kg": 1_000.0},
+            {
+                "drainage_ratio": 0.3,
+                "other_water_l_m2_day": 0.2,
+                "water_rate_krw_m3": 2_300.0,
+            },
+        )
+        result = calculate_material_cost(
+            {"cultivation_area_m2": 30.0},
+            {"seedling_cost_per_m2_month_krw": 5_000.0},
+            water_result,
+            {"nutrient_cost_per_l_krw": 20.0},
+        )
+
+        crop_irrigation_l = water_result["monthly_crop_irrigation_l"]
+        other_water_l = water_result["monthly_other_water_l"]
+        self.assertEqual(
+            result["monthly_nutrient_solution_l"], crop_irrigation_l
+        )
+        self.assertNotEqual(
+            result["monthly_nutrient_solution_l"],
+            crop_irrigation_l + other_water_l,
+        )
+        self.assertEqual(
+            result["monthly_nutrient_cost_krw"], crop_irrigation_l * 20.0
+        )
+        self.assertEqual(
+            result["monthly_material_cost_krw"],
+            150_000.0 + crop_irrigation_l * 20.0,
+        )
 
     def test_seedling_monthly_rates_are_one_third_of_previous_prices(self) -> None:
         expected_rates = {
@@ -290,6 +325,10 @@ class ProfitCalculationTest(unittest.TestCase):
                 "기존 1회 단가의 1/3을 매월 적용",
             )
             self.assertEqual(input_criteria["양액 단가"], "20 원/L")
+            self.assertEqual(
+                input_criteria["양액량 기준"],
+                "배액 포함 월 작물 관수량",
+            )
             self.assertEqual(
                 input_criteria["작물별 모듈 층 수"],
                 " · ".join(

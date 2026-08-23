@@ -105,7 +105,7 @@ def calculate_all_sites() -> list[dict[str, object]]:
                 space_result, humidity_result, standard
             )
             material_result = calculate_material_cost(
-                space_result, crop, standard
+                space_result, crop, water_result, standard
             )
             labor_result = calculate_labor_cost(
                 production_result, crop, standard
