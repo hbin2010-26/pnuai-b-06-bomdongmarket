@@ -20,7 +20,6 @@ export const ENDPOINTS = {
   profit: {
     estimate: '/profit/estimate',
     crops: '/profit/crops',
-    kamisCollect: '/profit/kamis/collect',
   },
   files: {
     upload: '/files',

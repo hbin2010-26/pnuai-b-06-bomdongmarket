@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 // KAMIS 일별 도·소매 가격 조회.
 // 응답 한 건은 "어느 날, 어느 시장에서, 어떤 등급의 무엇이 얼마였다"는 조사 기록이고
@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 //  1) 무게 단위(g·kg) 조사만 채택한다.
 //     kg환산가격(exmn_dd_cnvs_prc) 필드는 이름과 달리 거래 단위가 개수면 환산되지 않고
 //     개당 가격이 그대로 들어온다(파프리카 '1개' 1,160원). 그대로 쓰면 매출이 1/10로 잡힌다.
-//     단위 뒤에 괄호 설명이 붙는 품목이 있어(배추 'kg(그물망 3포기)') 접두어로 판단한다.
 //  2) 등급을 하나로 고정한다. 등급마다 값이 다르다.
 //  3) 조사된 날 중 가장 최근 날짜를 고르고, 그날 기록들의 중앙값을 쓴다.
 //     같은 날에도 시장별로 12,600~26,500원까지 벌어져 1건만 집으면 최저가에 걸릴 수 있고,
@@ -37,10 +36,7 @@ import java.util.regex.Pattern;
 public class KamisPriceClient {
 
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
-    // 무게 단위 판정. 배추처럼 "kg(그물망 3포기)" 로 오는 품목이 있어 정확히 일치로 보면
-    // 조사 172건이 통째로 버려진다. 값 자체는 kg 환산가라 쓸 수 있다.
-    // 반대로 "포기"·"개" 처럼 무게가 아닌 단위는 환산되지 않은 개당 가격이 그대로 들어와 걸러야 한다.
-    private static final Pattern WEIGHT_UNIT = Pattern.compile("^\\s*(?i:g|kg)\\s*(\\(.*\\))?\\s*$");
+    private static final Set<String> WEIGHT_UNITS = Set.of("g", "kg", "G", "KG");
     private static final int MAX_ROWS = 1000;
 
     private final RestClient restClient;
@@ -133,7 +129,7 @@ public class KamisPriceClient {
     }
 
     private Optional<PriceRecord> toRecord(JsonNode node) {
-        if (!WEIGHT_UNIT.matcher(node.path("unit").asString("")).matches()) {
+        if (!WEIGHT_UNITS.contains(node.path("unit").asString(""))) {
             return Optional.empty();
         }
         if (!properties.grade().equals(node.path("grd_nm").asString(""))) {
