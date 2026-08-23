@@ -39,6 +39,7 @@ export async function collectKamisPrices(): Promise<KamisCollectResult> {
   return {
     collectedFor: '2026-08-23',
     skipped: false,
+    skipReason: null,
     updated: 2,
     missing: 1,
     failed: 0,

@@ -234,8 +234,10 @@ export interface ProfitEstimate {
 // KAMIS 시세 수동 수집 결과입니다.
 export interface KamisCollectResult {
   collectedFor: string;
-  // 서비스 키가 없거나 이미 수집이 돌고 있으면 true 입니다.
+  // 수집을 돌리지 않고 건너뛰었으면 true. 이유는 skipReason 에 있습니다.
   skipped: boolean;
+  // DISABLED=꺼져 있음·키 없음, ALREADY_RUNNING=이미 수집 중, COOLDOWN=대기 시간이 남음
+  skipReason: 'DISABLED' | 'ALREADY_RUNNING' | 'COOLDOWN' | null;
   updated: number;
   missing: number;
   failed: number;
@@ -244,8 +246,9 @@ export interface KamisCollectResult {
 
 export interface KamisCollectItem {
   cropName: string;
-  // UPDATED=갱신, MISSING=조사 없음(비제철 등), FAILED=저장 실패
-  status: string;
+  // UPDATED=갱신, MISSING=조사 없음(비제철 등), QUERY_FAILED=외부 조회 실패, SAVE_FAILED=저장 실패.
+  // 조사가 없는 것과 조회를 못 한 것은 다릅니다 — 후자는 장애입니다.
+  status: 'UPDATED' | 'MISSING' | 'QUERY_FAILED' | 'SAVE_FAILED';
   pricePerKgKrw: number | null;
   surveyedOn: string | null;
   sampleCount: number | null;

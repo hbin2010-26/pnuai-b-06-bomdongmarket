@@ -79,8 +79,14 @@ public class ProfitController {
                     서버가 늘 떠 있지 않아(유휴 시 내려감) 배치가 실제로 돌지 않는 날이 많아 필요합니다.
 
                     작물마다 외부 API 를 한 번씩 부르고 사이에 간격을 둬서 몇 초 걸립니다.
-                    이미 수집이 돌고 있으면 겹쳐 돌리지 않고 skipped=true 로 돌려줍니다.
+                    그래서 남용되면 일일 할당량이 마릅니다 — 직전 수집 이후 최소 간격
+                    (kamis.manual-cooldown-seconds, 기본 600초)이 지나야 다시 돌고,
+                    그 전에는 skipped=true, skipReason=COOLDOWN 으로 돌려줍니다.
+                    kamis.manual-collect-enabled=false 면 이 경로를 아예 닫고 새벽 배치만 씁니다.
+
+                    이미 수집이 돌고 있으면 skipReason=ALREADY_RUNNING 입니다.
                     조사가 없는 작물(비제철 등)은 MISSING 이며 실패가 아닙니다.
+                    외부 조회를 못 한 경우는 QUERY_FAILED 로 따로 나옵니다 — 이쪽은 장애입니다.
                     """
     )
     @ApiResponses({
@@ -95,8 +101,9 @@ public class ProfitController {
     })
     @PostMapping("/kamis/collect")
     public ApiResponse<KamisCollectResponse> collectKamis() {
+        // 사람이 누른 경로다 — 쿨다운과 설정 플래그를 적용받는다.
         KamisCollectResponse result = kamisPriceCollector.collectWithReport(
-                LocalDate.now(kamisProperties.zone()));
+                LocalDate.now(kamisProperties.zone()), true);
         return ApiResponse.success("KAMIS 시세 수집을 실행했습니다.", result);
     }
 }

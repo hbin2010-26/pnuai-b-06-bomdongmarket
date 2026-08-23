@@ -66,9 +66,29 @@ public class KamisPriceClient {
     public record DailyPrice(LocalDate surveyedOn, int pricePerKgKrw, int sampleCount) {
     }
 
-    public Optional<DailyPrice> fetchLatest(KamisItemCodes.ItemCode code, LocalDate today) {
+    // 조회 결과. "조사가 없다"와 "조회를 못 했다"를 반드시 나눠서 돌려준다.
+    //
+    // 둘 다 Optional.empty() 로 뭉개면 KAMIS 가 죽어 있는 동안 모든 작물이 "비제철"로 보고돼
+    // 장애가 정상 상태로 읽힌다. 화면은 이 구분을 그대로 보여 준다(#129 리뷰).
+    public sealed interface Result {
+
+        // 대표 시세를 찾았다.
+        record Found(DailyPrice price) implements Result {
+        }
+
+        // 조회는 됐는데 기간 안에 조사 기록이 없다. 비제철이면 정상이다.
+        record NoSurvey() implements Result {
+        }
+
+        // 외부 API 호출·파싱이 실패했다. 값이 없는 것과 다른 상황이다.
+        record QueryFailed(String detail) implements Result {
+        }
+    }
+
+    public Result fetchLatest(KamisItemCodes.ItemCode code, LocalDate today) {
         if (!properties.usable()) {
-            return Optional.empty();
+            // 키가 없으면 애초에 물어보지 못한 것이라 조사 없음과 다르다.
+            return new Result.QueryFailed("서비스 키가 없거나 수집이 꺼져 있습니다.");
         }
 
         List<PriceRecord> records;
@@ -77,10 +97,10 @@ public class KamisPriceClient {
         } catch (Exception e) {
             // 외부 API 장애로 수집이 실패해도 서비스는 기존 단가로 계속 동작해야 한다.
             log.warn("KAMIS 조회 실패 (부류 {}, 품목 {}): {}", code.categoryCode(), code.itemCode(), e.toString());
-            return Optional.empty();
+            return new Result.QueryFailed(e.toString());
         }
         if (records.isEmpty()) {
-            return Optional.empty();
+            return new Result.NoSurvey();
         }
 
         LocalDate latest = records.stream()
@@ -93,7 +113,7 @@ public class KamisPriceClient {
                 .sorted()
                 .toList();
 
-        return Optional.of(new DailyPrice(latest, median(sameDay), sameDay.size()));
+        return new Result.Found(new DailyPrice(latest, median(sameDay), sameDay.size()));
     }
 
     private List<PriceRecord> fetchRecords(KamisItemCodes.ItemCode code, LocalDate from, LocalDate to) {
