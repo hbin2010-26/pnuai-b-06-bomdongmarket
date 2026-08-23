@@ -37,12 +37,18 @@ public class RecommendedCrop {
     @Column(nullable = false)
     private int displayOrder;
 
+    // 이 작물이 어떤 기준으로 뽑혔는지. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향(#98).
+    // 기존 행에는 값이 없으므로 nullable 로 둔다 — 화면은 PROFIT 으로 읽는다.
+    @Column(length = 20)
+    private String pickType;
+
     @Builder
-    public RecommendedCrop(Crop crop, String cropName, String reason, int displayOrder) {
+    public RecommendedCrop(Crop crop, String cropName, String reason, int displayOrder, String pickType) {
         this.crop = crop;
         this.cropName = cropName;
         this.reason = reason;
         this.displayOrder = displayOrder;
+        this.pickType = pickType;
     }
 
     // 연관관계 편의 메서드 — AiRecommendation.addRecommendedCrop에서만 호출한다

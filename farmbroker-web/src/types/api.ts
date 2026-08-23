@@ -189,6 +189,8 @@ export interface CropRecommendation {
   cropName: string;
   cropId: number | null;
   reason: string;
+  // 뽑힌 기준입니다. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향 기반 추천.
+  pickType: 'PROFIT' | 'PREFERENCE';
   expectedYieldKg: number | null;
   avgPricePerKg: number | null;
   // 이 작물 기준 서버 계산값입니다. 추천 작물마다 따로 옵니다 —
@@ -283,8 +285,10 @@ export interface AiRecommendation {
 
 export interface AiRecommendationInput {
   spaceId: number;
+  // 계산 가능한 작물 목록(GET /profit/crops)에서 고른 이름입니다.
   preferredCrop?: string;
-  purpose?: string;
+  // 수익형 또는 취미형. 목적에 따라 AI 근거의 무게중심이 달라집니다.
+  purpose?: '수익형' | '취미형';
   additionalInfo?: string;
 }
 

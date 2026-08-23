@@ -66,6 +66,9 @@ public class AiRecommendResponse {
         private final Long cropId;
         @Schema(description = "공간·사용자 조건에 근거해 Gemini가 생성한 추천 이유")
         private final String reason;
+        @Schema(description = "뽑힌 기준. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향 기반 추천",
+                example = "PROFIT", allowableValues = {"PROFIT", "PREFERENCE"})
+        private final String pickType;
         @Schema(description = "서버 계산 예상 수확량(kg): ㎡당 수확량 × 공간 면적", example = "175")
         private final Integer expectedYieldKg;
         @Schema(description = "작물 데이터에 저장된 kg당 기준 단가. Gemini 생성값이 아님", example = "7000")
@@ -74,12 +77,13 @@ public class AiRecommendResponse {
                 nullable = true)
         private final ProfitEstimateResponse profitEstimate;
 
-        public RecommendedCropItem(String cropName, Long cropId, String reason,
+        public RecommendedCropItem(String cropName, Long cropId, String reason, String pickType,
                                    Integer expectedYieldKg, Integer avgPricePerKg,
                                    ProfitEstimateResponse profitEstimate) {
             this.cropName = cropName;
             this.cropId = cropId;
             this.reason = reason;
+            this.pickType = pickType;
             this.expectedYieldKg = expectedYieldKg;
             this.avgPricePerKg = avgPricePerKg;
             this.profitEstimate = profitEstimate;

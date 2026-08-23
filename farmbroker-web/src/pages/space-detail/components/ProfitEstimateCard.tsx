@@ -24,8 +24,8 @@ type UserRequest = Omit<AiRecommendationInput, 'spaceId'>;
 // 재배 목적은 두 가지뿐이라 자유 입력 대신 고르게 합니다. 자유 입력으로 받으면
 // "취미로 조금", "부업" 같은 표현이 제각각이라 AI 가 매번 다르게 해석합니다.
 const PURPOSES = [
-  { value: '수익형', hint: '판매해서 수익을 내는 것이 목표입니다.' },
-  { value: '취미형', hint: '직접 길러 쓰는 것이 목표입니다.' },
+  { value: '수익형', hint: '판매해서 수익을 내는 것이 목표입니다. 배분수익과 비용 구조를 먼저 설명합니다.' },
+  { value: '취미형', hint: '직접 길러 쓰는 것이 목표입니다. 난이도와 재배기간을 먼저 설명합니다.' },
 ] as const;
 
 // 값의 신뢰도 3단계입니다. 서버 CropCultivationParam.DATA_STATUS_* 와 같은 문자열입니다.
@@ -162,8 +162,8 @@ export function ProfitEstimateCard({
         <div className="mt-5">
           <p className="text-sm leading-6 text-slate-600">
             작물의 선택과 순서는 서버 수익 계산기가 정하고, AI는 각 작물이 이 공간에 왜 맞는지
-            근거를 씁니다. 아래를 채우면 그 조건에 맞춰 추천이 달라집니다. 비워 두면 계산기
-            순위를 그대로 따릅니다.
+            근거를 씁니다. 아래를 채우면 계산기 순위는 그대로 두고 요청에 맞는 작물 한 개를
+            취향 추천으로 덧붙입니다. 작물을 고르면 그 작물만 설명합니다.
           </p>
 
           <div className="mt-5 grid gap-3">
@@ -190,7 +190,7 @@ export function ProfitEstimateCard({
             </label>
 
             <fieldset className="rounded-app border border-leaf-200 px-3 py-2">
-              <legend className="px-1 text-xs font-semibold text-slate-500">재배 목적</legend>
+              <legend className="px-1 text-xs font-semibold text-slate-500">목적</legend>
               <div className="flex flex-wrap gap-4 py-1">
                 {PURPOSES.map((purpose) => (
                   <label
@@ -214,12 +214,12 @@ export function ProfitEstimateCard({
             </fieldset>
 
             <Input
-              label="추가 조건"
+              label="기타 취향 및 요청사항"
               maxLength={500}
               onChange={(event) =>
                 setRequest((prev) => ({ ...prev, additionalInfo: event.target.value }))
               }
-              placeholder="예: 초기 비용을 최대한 줄이고 싶습니다."
+              placeholder="예: 손이 덜 가는 작물이면 좋겠습니다."
               value={request.additionalInfo ?? ''}
             />
           </div>
@@ -257,7 +257,9 @@ export function ProfitEstimateCard({
                   onClick={() => handlePickOtherCrop(crop.cropName)}
                   type="button"
                 >
-                  {index + 1}순위 {crop.cropName}
+                  {crop.pickType === 'PREFERENCE'
+                    ? `취향 추천 ${crop.cropName}`
+                    : `${index + 1}순위 ${crop.cropName}`}
                 </button>
               );
             })}
@@ -373,7 +375,12 @@ export function ProfitEstimateCard({
                 key={crop.cropName}
                 className="rounded-app border border-leaf-100 px-3 py-2"
               >
-                <p className="font-bold text-ink-900">{crop.cropName}</p>
+                <p className="flex items-center gap-2 font-bold text-ink-900">
+                  {crop.cropName}
+                  {crop.pickType === 'PREFERENCE' ? (
+                    <Badge tone="blue">취향 추천</Badge>
+                  ) : null}
+                </p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{crop.reason}</p>
               </div>
             ))}

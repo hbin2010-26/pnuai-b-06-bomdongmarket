@@ -157,6 +157,7 @@ export const mockRecommendation: AiRecommendation = {
     {
       cropName: '딸기',
       cropId: 4,
+      pickType: 'PROFIT' as const,
       reason:
         '서버 계산 기준 배분수익이 가장 큽니다. 단가가 높아 같은 재배면적에서 매출이 크게 잡힙니다.',
       expectedYieldKg: 33,
@@ -166,6 +167,7 @@ export const mockRecommendation: AiRecommendation = {
     {
       cropName: '바질',
       cropId: 5,
+      pickType: 'PROFIT' as const,
       reason:
         '단가가 높고 좁은 간격으로 재배할 수 있어 환기만 보완하면 수익성을 높일 수 있습니다.',
       expectedYieldKg: 12,
@@ -175,7 +177,8 @@ export const mockRecommendation: AiRecommendation = {
     {
       cropName: '상추',
       cropId: 3,
-      reason: '재배 주기가 짧고 조명 요구량이 높지 않아 이 공간의 첫 작물로 적합합니다.',
+      pickType: 'PREFERENCE' as const,
+      reason: '재배 주기가 짧고 조명 요구량이 높지 않아 처음 길러 보기에 좋습니다.',
       expectedYieldKg: 80,
       avgPricePerKg: 8000,
       profitEstimate: mockRecommendationEstimates[2] ?? null,

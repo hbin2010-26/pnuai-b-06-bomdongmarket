@@ -130,6 +130,7 @@ public class AiRecommendService {
                     .cropName(crop.getName())
                     .reason(item.reason().trim())
                     .displayOrder(order++)
+                    .pickType(pickType(item, estimateByCropName.containsKey(crop.getName())))
                     .build());
         }
         aiRecommendationRepository.save(recommendation);
@@ -159,9 +160,8 @@ public class AiRecommendService {
 
         // 프롬프트로만 막으면 모델이 가끔 다른 작물을 끼워 넣는데, 후보를 줄이면 ID 검증에서 걸러진다.
         // 이름이 목록에 없으면(직접 입력한 옛 데이터 등) 기존 흐름을 그대로 탄다.
-        String preferredName = request.getPreferredCrop();
-        if (StringUtils.hasText(preferredName)) {
-            Crop preferred = cropByName.get(preferredName.trim());
+        if (RecommendPromptBuilder.picksSingleCrop(request)) {
+            Crop preferred = cropByName.get(request.getPreferredCrop().trim());
             if (preferred != null) {
                 return List.of(preferred);
             }
@@ -176,6 +176,18 @@ public class AiRecommendService {
                 .limit(RECOMMEND_COUNT)
                 .toList();
         return top.size() >= 2 ? top : crops;
+    }
+
+    // 모델이 보낸 pickType 을 그대로 믿지 않는다. 값이 없거나 오타면 계산기 순위에 있는지로 정한다 —
+    // 순위 밖 작물에 PROFIT 이 붙으면 화면이 계산기가 고른 것처럼 보여 준다.
+    private String pickType(GeminiRecommendOutput.CropItem item, boolean inRanking) {
+        if (RecommendPromptBuilder.PICK_PREFERENCE.equals(item.pickType())) {
+            return RecommendPromptBuilder.PICK_PREFERENCE;
+        }
+        if (RecommendPromptBuilder.PICK_PROFIT.equals(item.pickType()) && inRanking) {
+            return RecommendPromptBuilder.PICK_PROFIT;
+        }
+        return inRanking ? RecommendPromptBuilder.PICK_PROFIT : RecommendPromptBuilder.PICK_PREFERENCE;
     }
 
     // 모델이 순서를 바꾸거나 하나를 빠뜨려도 화면에는 계산기 순위가 그대로 보이게 맞춘다.
@@ -195,7 +207,9 @@ public class AiRecommendService {
                 reason = serverReason(estimateByCropName.get(crop.getName()));
                 log.warn("[AI 추천] 모델이 {} 의 근거를 빠뜨려 계산 결과로 대체했습니다.", crop.getName());
             }
-            aligned.add(new GeminiRecommendOutput.CropItem(crop.getId(), reason));
+            // 요청이 없을 때만 오는 경로다 — 전부 계산기 순위에서 왔다.
+            aligned.add(new GeminiRecommendOutput.CropItem(
+                    crop.getId(), RecommendPromptBuilder.PICK_PROFIT, reason));
         }
         return aligned;
     }
@@ -322,6 +336,8 @@ public class AiRecommendService {
                         rc.getCropName(),
                         rc.getCrop() != null ? rc.getCrop().getId() : null,
                         rc.getReason(),
+                        // 이 열이 생기기 전에 저장된 추천은 값이 없다 — 계산기 순위로 읽는다.
+                        rc.getPickType() != null ? rc.getPickType() : RecommendPromptBuilder.PICK_PROFIT,
                         expectedYieldKg(rc.getCrop(), space.getArea()),
                         rc.getCrop() != null ? rc.getCrop().getAvgPricePerKg() : null,
                         toEstimateResponse(estimateByCropName.get(rc.getCropName()))

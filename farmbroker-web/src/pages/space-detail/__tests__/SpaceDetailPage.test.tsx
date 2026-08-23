@@ -94,6 +94,7 @@ function recommendation(): AiRecommendation {
       {
         cropId: 1,
         cropName: '상추',
+        pickType: 'PROFIT' as const,
         reason: '공간 조건에 적합합니다.',
         expectedYieldKg: 10,
         avgPricePerKg: 1000,
@@ -102,6 +103,8 @@ function recommendation(): AiRecommendation {
       {
         cropId: 2,
         cropName: '바질',
+        // 계산기 순위 밖에서 취향으로 고른 한 칸입니다(#98).
+        pickType: 'PREFERENCE' as const,
         reason: '단가가 높습니다.',
         expectedYieldKg: 5,
         avgPricePerKg: 20000,
@@ -177,7 +180,10 @@ describe('SpaceDetailPage', () => {
     await screen.findByRole('option', { name: '바질' });
     await user.selectOptions(screen.getByLabelText('궁금한 작물'), '바질');
     await user.click(screen.getByRole('radio', { name: '수익형' }));
-    await user.type(screen.getByLabelText('추가 조건'), '초기 비용을 줄이고 싶습니다.');
+    await user.type(
+      screen.getByLabelText('기타 취향 및 요청사항'),
+      '초기 비용을 줄이고 싶습니다.',
+    );
     await user.click(screen.getByRole('button', { name: /AI 추천 실행/i }));
 
     expect(getRecommendation).toHaveBeenCalledWith(1, {
@@ -185,6 +191,24 @@ describe('SpaceDetailPage', () => {
       purpose: '수익형',
       additionalInfo: '초기 비용을 줄이고 싶습니다.',
     });
+  });
+
+  // 계산기 순위와 취향 추천이 섞여 보이면 어느 쪽이 수익 근거인지 알 수 없습니다(#98).
+  it('취향으로 고른 작물은 순위 번호 대신 취향 추천으로 표시한다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 3,
+      email: 'consumer@example.com',
+      nickname: '지역소비자',
+      roles: ['CONSUMER'],
+    });
+    vi.mocked(getRecommendation).mockResolvedValue(recommendation());
+    renderWithProviders(<SpaceDetailPage />, { route: '/spaces/1' });
+
+    await user.click(await screen.findByRole('button', { name: /AI 추천 실행/i }));
+
+    expect(await screen.findByRole('button', { name: '1순위 상추' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '취향 추천 바질' })).toBeInTheDocument();
   });
 
   // 조건을 잘못 넣었을 때 페이지를 새로 고치는 것 말고는 되돌릴 길이 없었습니다(PR #130 리뷰).
@@ -244,9 +268,9 @@ describe('SpaceDetailPage', () => {
     expect(first).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('₩1,000,000')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '2순위 바질' }));
+    await user.click(screen.getByRole('button', { name: '취향 추천 바질' }));
 
-    expect(screen.getByRole('button', { name: '2순위 바질' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '취향 추천 바질' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
