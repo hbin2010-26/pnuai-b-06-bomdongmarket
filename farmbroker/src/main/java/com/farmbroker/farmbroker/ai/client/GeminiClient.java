@@ -77,11 +77,10 @@ public class GeminiClient {
                         "recommendedCrops", Map.of(
                                 "type", "array", "minItems", 2, "maxItems", 3,
                                 "items", cropItemSchema),
-                        "layoutSuggestion", Map.of("type", "string"),
                         "cautions", Map.of(
                                 "type", "array", "items", Map.of("type", "string"))
                 ),
-                "required", List.of("recommendedCrops", "layoutSuggestion", "cautions")
+                "required", List.of("recommendedCrops", "cautions")
         );
         return Map.of(
                 "responseMimeType", "application/json",

@@ -208,6 +208,9 @@ describe('ContractPage', () => {
 
     // 달력에서 고를 수 없는 값이 붙여넣기·자동완성으로 들어온 상황입니다.
     const startDate = await screen.findByLabelText('계약 시작일');
+    // 폼은 계약을 받아 온 뒤 저장된 값으로 한 번 더 채워집니다(ContractPage 의 seeding effect).
+    // 그 전에 값을 넣으면 되돌려져 시작일 오류만 사라지므로, 채워진 뒤에 바꿉니다.
+    await waitFor(() => expect(startDate).toHaveValue(savedTerms.startDate));
     fireEvent.change(startDate, { target: { value: daysFromToday(15) } });
     fireEvent.change(screen.getByLabelText('계약 종료일'), {
       target: { value: daysFromToday(1) },

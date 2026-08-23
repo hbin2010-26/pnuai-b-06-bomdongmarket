@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// hbin Profit_Calculator 0.3.1(Python)의 계산 블록 1~10을 자바로 포팅한 결정론적 계산기.
+// hbin Profit_Calculator 1.0.1(Python)의 계산 블록 1~10을 자바로 포팅한 결정론적 계산기.
 // LLM 도구(function calling)가 아니라 서버가 추천 작물명으로 직접 호출한다.
 // 기간 기준: 월평균(전력은 12개월 시나리오의 산술평균). Python 원본과 수치가 일치하도록 계산 순서를 유지한다.
 @Component
@@ -17,14 +17,17 @@ public class ProfitCalculator {
     private static final double DAYS_PER_AVERAGE_MONTH = 365.0 / 12.0;
     private static final double HOURS_PER_AVERAGE_MONTH = 24.0 * DAYS_PER_AVERAGE_MONTH;
 
+    // 물리·요율 상수(전기요율, LED 효율, 월별 외기 등)는 여전히 CSV 참조 데이터에서 온다.
     private final ProfitReferenceData data;
+    // 작물별 재배 파라미터는 DB 에서 온다 — 자료를 보완할 때 코드를 고치지 않도록 분리했다.
+    private final CropProductionProvider crops;
 
     public boolean supports(String cropName) {
-        return data.hasCultivationData(cropName);
+        return crops.hasCultivationData(cropName);
     }
 
     public List<String> supportedCrops() {
-        return data.supportedCropNames();
+        return crops.supportedCropNames();
     }
 
     // 공간 입력 + 작물명 + 판매 단가로 월평균 수익성을 계산한다.
@@ -32,10 +35,10 @@ public class ProfitCalculator {
     // 시세 출처(백과사전/KAMIS)가 바뀌어도 계산 로직은 그대로 두기 위함.
     // 재배 파라미터가 없는 작물이면 예외 대신 호출 전 supports()로 걸러야 한다.
     public ProfitEstimate estimate(SpaceInputs space, String cropName, MarketPrice price) {
-        CropProduction crop = data.cropProduction(cropName);
+        CropProduction crop = crops.cropProduction(cropName);
         double pricePerKg = price.pricePerKgKrw();
 
-        Space s = calculateSpace(space);
+        Space s = calculateSpace(space, crop);
         Production production = calculateProduction(s, crop);
         double revenue = production.monthlySalesKg() * pricePerKg;               // 블록3 매출
 
@@ -43,31 +46,33 @@ public class ProfitCalculator {
         Energy energy = calculateEnergy(s, crop, lighting);                      // 블록4~6 전력
         double electricityCost = energy.averageMonthlyEnergyKwh() * data.standard("electricity_rate_krw_kwh");
 
-        double waterCost = calculateWaterCost(s, crop);                          // 블록7 용수
-        double materialCost = calculateMaterialCost(s, crop);                    // 블록8 재료
+        Water water = calculateWater(s, crop);                                   // 블록7 용수
+        // 양액은 작물이 실제로 받는 관수량 그대로다 — 블록7 결과를 다시 쓴다.
+        MaterialCost material = calculateMaterialCost(s, crop, water);           // 블록8 재료
         double laborCost = calculateLaborCost(production, crop);                 // 블록9 인건
 
         return calculateProfit(space, cropName, s, production, price, revenue,
-                lighting, energy, electricityCost, waterCost, materialCost, laborCost); // 블록10 손익
+                lighting, energy, electricityCost, water.costKrw(), material, laborCost); // 블록10 손익
     }
 
-    // 블록1: 공간 면적·체적
-    private Space calculateSpace(SpaceInputs in) {
+    // 블록1: 공간 면적·체적. 다단 층 수는 작물에서 온다(1.0.1).
+    private Space calculateSpace(SpaceInputs in, CropProduction crop) {
         if (in.totalAreaM2() <= 0) {
             throw new IllegalArgumentException("공실 전체면적은 0보다 커야 합니다.");
         }
         if (in.cultivableRatio() < 0 || in.cultivableRatio() > 1) {
             throw new IllegalArgumentException("재배가능 비율은 0과 1 사이여야 합니다.");
         }
-        if (in.moduleLayers() <= 0 || in.ceilingHeightM() <= 0) {
+        if (crop.moduleLayers() <= 0 || in.ceilingHeightM() <= 0) {
             throw new IllegalArgumentException("재배모듈 층 수와 천장 높이는 0보다 커야 합니다.");
         }
         double availableFloor = in.totalAreaM2() * in.cultivableRatio();
-        double cultivation = availableFloor * in.moduleLayers();
+        double cultivation = availableFloor * crop.moduleLayers();
         double volume = in.totalAreaM2() * in.ceilingHeightM();
         double length = Math.sqrt(in.totalAreaM2());
         double wallOneSide = length * in.ceilingHeightM();
-        return new Space(in.totalAreaM2(), availableFloor, cultivation, volume, wallOneSide);
+        return new Space(in.totalAreaM2(), crop.moduleLayers(), availableFloor, cultivation,
+                volume, wallOneSide);
     }
 
     // 블록2: 생산량
@@ -176,18 +181,32 @@ public class ProfitCalculator {
         return new Energy(monthlyEvapotranspirationKg, averageMonthlyEnergy);
     }
 
-    // 블록7: 용수비
-    private double calculateWaterCost(Space s, CropProduction crop) {
+    // 블록7: 용수비. 배액률은 배액량/작물 관수량이라, 증발산량을 (1 - 배액률)로 나눠
+    // 배액까지 포함한 관수량을 구한다(1.0.1).
+    //
+    // 관수량은 양액비(블록8)도 그대로 쓰므로 함께 돌려준다. 같은 물을 두 곳에서 서로 다른
+    // 식으로 잡으면 재료비와 수도비의 비율이 어긋난다.
+    private Water calculateWater(Space s, CropProduction crop) {
+        double drainageRatio = data.standard("drainage_ratio");
+        if (drainageRatio < 0 || drainageRatio >= 1) {
+            throw new IllegalArgumentException("배액률은 0 이상 1 미만이어야 합니다.");
+        }
         double evapotranspirationL = s.cultivationAreaM2() * crop.dailyEvapotranspirationMm() * DAYS_PER_AVERAGE_MONTH;
+        double irrigationL = evapotranspirationL / (1.0 - drainageRatio);
         double otherWaterL = s.totalAreaM2() * data.standard("other_water_l_m2_day") * DAYS_PER_AVERAGE_MONTH;
-        double totalWaterM3 = (evapotranspirationL + otherWaterL) / 1000.0;
-        return totalWaterM3 * data.standard("water_rate_krw_m3");
+        double totalWaterM3 = (irrigationL + otherWaterL) / 1000.0;
+        return new Water(irrigationL, totalWaterM3 * data.standard("water_rate_krw_m3"));
     }
 
-    // 블록8: 재료비
-    private double calculateMaterialCost(Space s, CropProduction crop) {
-        double seedling = s.cultivationAreaM2() * crop.cyclesPerMonth() * crop.materialCostPerM2CycleKrw();
-        return seedling + crop.otherMaterialCostMonthKrw();
+    // 블록8: 재료비 = 월 모종비 + 월 양액비 (1.0.1).
+    // 모종비는 1회 단가가 아니라 월 환산 단가라 회전수를 곱하지 않는다.
+    // 양액량은 블록7 의 작물 관수량(배액 포함)을 그대로 쓴다. 공실 전체면적 기준 기타 용수는
+    // 작물이 마시는 물이 아니므로 넣지 않는다.
+    private MaterialCost calculateMaterialCost(Space s, CropProduction crop, Water water) {
+        double seedling = s.cultivationAreaM2() * crop.seedlingCostPerM2MonthKrw();
+        double nutrientSolutionL = water.irrigationL();
+        double nutrientCost = nutrientSolutionL * data.standard("nutrient_cost_per_l_krw");
+        return new MaterialCost(seedling, nutrientSolutionL, nutrientCost, seedling + nutrientCost);
     }
 
     // 블록9: 인건비 (판매량을 상품화율로 역산한 전체 생산량 기준)
@@ -203,9 +222,13 @@ public class ProfitCalculator {
     // 블록10: 손익·수익배분·계약형태 추천
     private ProfitEstimate calculateProfit(SpaceInputs in, String cropName, Space s, Production production,
                                            MarketPrice price, double revenue, Lighting lighting, Energy energy,
-                                           double electricityCost, double waterCost, double materialCost,
+                                           double electricityCost, double waterCost, MaterialCost material,
                                            double laborCost) {
-        double depreciation = data.standard("depreciation_and_other_cost_krw_month");
+        double otherCost = data.standard("other_cost_krw_month");
+        double equipmentRentalRate = data.standard("equipment_rental_cost_krw_m2_month");
+        if (equipmentRentalRate < 0) {
+            throw new IllegalArgumentException("면적당 월 기기 대여비는 음수가 될 수 없습니다.");
+        }
         double landlordRatio = data.contraction("landlord_share_ratio");
         if (landlordRatio < 0 || landlordRatio > 1) {
             throw new IllegalArgumentException("공간 대여자 배분비율은 0과 1 사이여야 합니다.");
@@ -214,8 +237,10 @@ public class ProfitCalculator {
             throw new IllegalArgumentException("원하는 월세는 음수가 될 수 없습니다.");
         }
 
-        double baseCost = electricityCost + waterCost + materialCost;
-        double operatingCost = baseCost + laborCost + depreciation;
+        // 설비는 사 두는 게 아니라 빌려 쓰는 것으로 잡는다 — 바닥면적 기준 월 대여비(1.0.1).
+        double equipmentRentalCost = s.availableFloorAreaM2() * equipmentRentalRate;
+        double baseCost = electricityCost + waterCost + material.totalKrw() + equipmentRentalCost;
+        double operatingCost = baseCost + laborCost + otherCost;
         double operatingProfit = revenue - operatingCost;
         double landlordExpectedIncome = operatingProfit * landlordRatio;
         double businessOperatingProfit = operatingProfit - landlordExpectedIncome;
@@ -229,11 +254,14 @@ public class ProfitCalculator {
 
         return new ProfitEstimate(
                 cropName,
-                s.totalAreaM2(), in.cultivableRatio(), in.moduleLayers(), in.ceilingHeightM(),
+                s.totalAreaM2(), in.cultivableRatio(), s.moduleLayers(), in.ceilingHeightM(),
                 s.availableFloorAreaM2(), s.cultivationAreaM2(),
                 lighting.powerW(), energy.averageMonthlyEnergyKwh(),
                 production.monthlyTotalProductionKg(), production.monthlySalesKg(), price, revenue,
-                electricityCost, waterCost, materialCost, laborCost, depreciation, operatingCost,
+                electricityCost, waterCost,
+                material.seedlingKrw(), material.nutrientSolutionL(), material.nutrientKrw(),
+                material.totalKrw(),
+                laborCost, equipmentRentalCost, otherCost, operatingCost,
                 operatingProfit, landlordRatio, landlordExpectedIncome, in.desiredMonthlyRentKrw(),
                 rentIncomeDifference, businessOperatingProfit, operatingLoss, longTermRecommended,
                 recommendation, contractType);
@@ -249,8 +277,8 @@ public class ProfitCalculator {
     }
 
     // ── 내부 중간 계산 결과 ──
-    private record Space(double totalAreaM2, double availableFloorAreaM2, double cultivationAreaM2,
-                         double volumeM3, double wallAreaOneSideM2) {
+    private record Space(double totalAreaM2, double moduleLayers, double availableFloorAreaM2,
+                         double cultivationAreaM2, double volumeM3, double wallAreaOneSideM2) {
     }
 
     private record Production(double monthlyTotalProductionKg, double monthlySalesKg) {
@@ -260,6 +288,14 @@ public class ProfitCalculator {
     }
 
     private record Energy(double monthlyEvapotranspirationKg, double averageMonthlyEnergyKwh) {
+    }
+
+    private record MaterialCost(double seedlingKrw, double nutrientSolutionL,
+                                double nutrientKrw, double totalKrw) {
+    }
+
+    // 배액을 포함한 작물 관수량과 그 물값. 관수량은 양액비도 함께 쓴다.
+    private record Water(double irrigationL, double costKrw) {
     }
 
     private record HumidityRatio(double ratio, double vaporPressure) {

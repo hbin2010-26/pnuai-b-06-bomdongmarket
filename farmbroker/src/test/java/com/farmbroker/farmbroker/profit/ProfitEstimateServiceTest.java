@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // 등록 전 수익 예측이 spaceId 없이 면적·월세만으로 동작하고,
@@ -36,7 +37,7 @@ class ProfitEstimateServiceTest {
         MarketPriceProvider prices = cropName ->
                 Optional.ofNullable(SEED_PRICES.get(cropName))
                         .map(price -> MarketPrice.seed(price, BASIS));
-        service = new ProfitEstimateService(new ProfitCalculator(data), prices);
+        service = new ProfitEstimateService(new ProfitCalculator(data, data), prices);
     }
 
     private static ProfitEstimateRequest request(double area, int monthlyRent) {
@@ -64,8 +65,8 @@ class ProfitEstimateServiceTest {
         ProfitEstimateResponse best = service.estimate(request(164, 1_200_000)).get(0);
 
         assertEquals("딸기", best.cropName());
-        assertEquals(16_472_160L, best.monthlyRevenueKrw());
-        assertEquals(3_424_966L, best.landlordExpectedIncomeKrw());
+        assertEquals(11_512_800L, best.monthlyRevenueKrw());
+        assertEquals(2_941_212L, best.landlordExpectedIncomeKrw());
         assertEquals(1_200_000L, best.desiredMonthlyRentKrw());
         assertEquals("장기계약형", best.contractType());
     }
@@ -75,8 +76,69 @@ class ProfitEstimateServiceTest {
         ProfitEstimateResponse best = service.estimate(request(66, 500_000)).get(0);
 
         assertEquals(66.0, best.totalAreaM2());
-        assertEquals(60, best.areaUtilizationPercent());
-        assertEquals(4, best.moduleLayers());
+        // 1.0.1 은 모든 공간에 재배가능비율 0.65 를 쓴다.
+        assertEquals(65, best.areaUtilizationPercent());
+        // 단수는 공간 가정값이 아니라 작물 속성이다 — 여기서 1위인 딸기는 2단.
+        assertEquals(2.0, best.moduleLayers());
         assertEquals(2.5, best.ceilingHeightM());
+    }
+
+    // 추천 목록 밖의 작물을 골라 계산할 때 쓰는 경로다(#98).
+    @Test
+    void 작물을_지정하면_그_작물만_계산한다() {
+        ProfitEstimateRequest request = request(66, 500_000);
+        ReflectionTestUtils.setField(request, "cropNames", List.of("바질"));
+
+        List<ProfitEstimateResponse> results = service.estimate(request);
+
+        assertEquals(1, results.size());
+        assertEquals("바질", results.get(0).cropName());
+    }
+
+    @Test
+    void 모르는_작물만_지정하면_결과가_빈다() {
+        ProfitEstimateRequest request = request(66, 500_000);
+        ReflectionTestUtils.setField(request, "cropNames", List.of("없는작물"));
+
+        assertTrue(service.estimate(request).isEmpty());
+    }
+
+    @Test
+    void 작물을_지정하지_않으면_계산_가능한_전체를_돌려준다() {
+        List<ProfitEstimateResponse> results = service.estimate(request(66, 500_000));
+
+        assertEquals(SEED_PRICES.size(), results.size());
+    }
+
+    // 재배가능비율·층수·천장고는 설비 사양이라 표준 가정값이 임의값이다(#99).
+    // 아는 값이 있으면 넣을 수 있어야 하고, 넣은 값이 계산에 반영돼야 한다.
+    @Test
+    void 설비_값을_주면_계산에_반영하고_응답에_그대로_싣는다() {
+        ProfitEstimateRequest request = request(66, 500_000);
+        ReflectionTestUtils.setField(request, "cropNames", List.of("상추"));
+        ReflectionTestUtils.setField(request, "cultivableRatio", BigDecimal.valueOf(0.8));
+        ReflectionTestUtils.setField(request, "ceilingHeightM", BigDecimal.valueOf(3.5));
+
+        ProfitEstimateResponse custom = service.estimate(request).get(0);
+
+        assertEquals(0.8, custom.cultivableRatio());
+        assertEquals(80, custom.areaUtilizationPercent());
+        assertEquals(3.5, custom.ceilingHeightM());
+
+        ProfitEstimateRequest standard = request(66, 500_000);
+        ReflectionTestUtils.setField(standard, "cropNames", List.of("상추"));
+        ProfitEstimateResponse base = service.estimate(standard).get(0);
+
+        // 재배면적이 늘면 생산량도 달라져야 한다 — 값만 응답에 실리고 계산은 그대로면 안 된다.
+        assertNotEquals(base.cultivationAreaM2(), custom.cultivationAreaM2());
+        assertNotEquals(base.monthlyRevenueKrw(), custom.monthlyRevenueKrw());
+    }
+
+    @Test
+    void 설비_값을_비우면_표준_가정값을_쓴다() {
+        ProfitEstimateResponse result = service.estimate(request(66, 500_000)).get(0);
+
+        assertEquals(SpaceInputs.DEFAULT_CULTIVABLE_RATIO, result.cultivableRatio());
+        assertEquals(SpaceInputs.DEFAULT_CEILING_HEIGHT_M, result.ceilingHeightM());
     }
 }

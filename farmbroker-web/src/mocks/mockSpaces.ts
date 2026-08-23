@@ -1,4 +1,9 @@
+import { createMockProfitEstimates } from '@/mocks/mockProfitEstimates';
 import type { AiRecommendation, CropDetail, SpaceDetail } from '@/types/api';
+
+// 1번 공간(66㎡ / 월세 50만원) 기준 계산값입니다. 배분수익 내림차순으로 오며,
+// 추천 작물의 선택과 순서를 이 순위에 맞추어 뒤 화면과 상세 화면이 같은 작물을 보여 줍니다.
+const mockRecommendationEstimates = createMockProfitEstimates({ area: 66, monthlyRent: 500000 });
 
 export const mockSpaces: SpaceDetail[] = [
   {
@@ -145,31 +150,45 @@ export const mockCrops: CropDetail[] = [
 export const mockRecommendation: AiRecommendation = {
   recommendationId: 1,
   spaceId: 1,
+  // 작물 선택과 순서는 서버 수익 계산기가 정하고, 작물마다 그 작물 기준 계산값이 함께 옵니다.
+  // 목업도 계산기가 지원하는 작물로 맞춥니다 — 예전 목업의 '버터헤드 상추'는 계산기에 없어
+  // 화면에는 작물이 뜨는데 금액은 비는 상태를 재현하고 있었습니다.
   recommendedCrops: [
     {
-      cropName: '버터헤드 상추',
-      cropId: 3,
-      reason: '재배 주기가 짧고 조명 요구량이 높지 않아 이 공간의 첫 작물로 적합합니다.',
-      expectedYieldKg: 80,
-      avgPricePerKg: 7000,
+      cropName: '딸기',
+      cropId: 4,
+      pickType: 'PROFIT' as const,
+      reason:
+        '서버 계산 기준 배분수익이 가장 큽니다. 단가가 높아 같은 재배면적에서 매출이 크게 잡힙니다.',
+      expectedYieldKg: 33,
+      avgPricePerKg: 30000,
+      profitEstimate: mockRecommendationEstimates[0] ?? null,
     },
     {
       cropName: '바질',
       cropId: 5,
+      pickType: 'PROFIT' as const,
       reason:
         '단가가 높고 좁은 간격으로 재배할 수 있어 환기만 보완하면 수익성을 높일 수 있습니다.',
       expectedYieldKg: 12,
-      avgPricePerKg: 30000,
+      avgPricePerKg: 20000,
+      profitEstimate: mockRecommendationEstimates[1] ?? null,
+    },
+    {
+      cropName: '상추',
+      cropId: 3,
+      pickType: 'PREFERENCE' as const,
+      reason: '재배 주기가 짧고 조명 요구량이 높지 않아 처음 길러 보기에 좋습니다.',
+      expectedYieldKg: 80,
+      avgPricePerKg: 8000,
+      profitEstimate: mockRecommendationEstimates[2] ?? null,
     },
   ],
-  layoutSuggestion:
-    '중앙 동선에는 3단 재배 선반을 배치하고, 벽면에는 급수 탱크와 포장 작업대를 둡니다. 유지보수를 위해 한쪽 서비스 통로는 비워 두는 구성이 좋습니다.',
   cautions: [
     '습도가 높은 주간에는 환기 상태를 매일 확인해야 합니다.',
     '초기에는 저전력 LED 구역부터 운영한 뒤 선반 수를 단계적으로 늘리는 편이 안전합니다.',
   ],
   createdAt: '2026-07-05T14:00:00',
-  // 수익 계산기가 지원하는 작물은 상추·딸기·바질뿐이라 '버터헤드 상추'는 매칭되지 않습니다.
-  // 이 경우 백엔드도 null을 내려주므로 mock도 동일하게 둡니다.
-  profitEstimate: null,
+  // 첫 추천 작물의 계산값. 작물별 값은 recommendedCrops[].profitEstimate 에 있습니다.
+  profitEstimate: mockRecommendationEstimates[0] ?? null,
 };

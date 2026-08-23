@@ -22,22 +22,20 @@ public class AiRecommendResponse {
     private final Long spaceId;
     @Schema(description = "Gemini가 백과사전 후보 중 선택하고 서버가 검증한 작물 2~3개")
     private final List<RecommendedCropItem> recommendedCrops;
-    @Schema(description = "텍스트 기반 재배 모듈 배치 제안", example = "벽면에 다단 재배대를 배치하고 중앙 작업 통로를 확보하세요.")
-    private final String layoutSuggestion;
     @Schema(description = "공간과 추천 작물에 따른 운영 주의사항")
     private final List<String> cautions;
     @Schema(description = "추천 생성 또는 저장 시각", example = "2026-07-18T10:30:00")
     private final LocalDateTime createdAt;
-    @Schema(description = "대표 추천 작물의 서버 계산 예상 수익(월평균). 계산 가능한 작물이 없으면 null", nullable = true)
+    @Schema(description = "첫 추천 작물의 서버 계산 예상 수익(월평균). 계산 가능한 작물이 없으면 null. "
+            + "각 작물의 값은 recommendedCrops[].profitEstimate 에 따로 들어 있다", nullable = true)
     private final ProfitEstimateResponse profitEstimate;
 
     private AiRecommendResponse(Long recommendationId, Long spaceId, List<RecommendedCropItem> recommendedCrops,
-                                String layoutSuggestion, List<String> cautions, LocalDateTime createdAt,
+                                List<String> cautions, LocalDateTime createdAt,
                                 ProfitEstimateResponse profitEstimate) {
         this.recommendationId = recommendationId;
         this.spaceId = spaceId;
         this.recommendedCrops = recommendedCrops;
-        this.layoutSuggestion = layoutSuggestion;
         this.cautions = cautions;
         this.createdAt = createdAt;
         this.profitEstimate = profitEstimate;
@@ -52,7 +50,6 @@ public class AiRecommendResponse {
                 recommendation.getId(),
                 spaceId,
                 recommendedCrops,
-                recommendation.getLayoutSuggestion(),
                 cautions,
                 recommendation.getCreatedAt(),
                 profitEstimate
@@ -69,18 +66,27 @@ public class AiRecommendResponse {
         private final Long cropId;
         @Schema(description = "공간·사용자 조건에 근거해 Gemini가 생성한 추천 이유")
         private final String reason;
+        @Schema(description = "뽑힌 기준. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향 기반 추천",
+                example = "PROFIT", allowableValues = {"PROFIT", "PREFERENCE"})
+        private final String pickType;
         @Schema(description = "서버 계산 예상 수확량(kg): ㎡당 수확량 × 공간 면적", example = "175")
         private final Integer expectedYieldKg;
         @Schema(description = "작물 데이터에 저장된 kg당 기준 단가. Gemini 생성값이 아님", example = "7000")
         private final Integer avgPricePerKg;
+        @Schema(description = "이 작물 기준 서버 계산 예상 수익. 재배 파라미터나 단가가 없으면 null",
+                nullable = true)
+        private final ProfitEstimateResponse profitEstimate;
 
-        public RecommendedCropItem(String cropName, Long cropId, String reason,
-                                   Integer expectedYieldKg, Integer avgPricePerKg) {
+        public RecommendedCropItem(String cropName, Long cropId, String reason, String pickType,
+                                   Integer expectedYieldKg, Integer avgPricePerKg,
+                                   ProfitEstimateResponse profitEstimate) {
             this.cropName = cropName;
             this.cropId = cropId;
             this.reason = reason;
+            this.pickType = pickType;
             this.expectedYieldKg = expectedYieldKg;
             this.avgPricePerKg = avgPricePerKg;
+            this.profitEstimate = profitEstimate;
         }
     }
 }
