@@ -31,9 +31,10 @@ export function EmailVerificationField({
   const isSending = status === 'sending';
   const isVerifying = status === 'verifying';
   const isCodeVisible = status !== 'idle' && !isVerified;
+  const resendIn = verification.resendInFor(email);
 
   const canSend =
-    EMAIL_PATTERN.test(email.trim()) && !isSending && !isVerifying && verification.resendIn === 0;
+    EMAIL_PATTERN.test(email.trim()) && !isSending && !isVerifying && resendIn === 0;
   const isExpired = status === 'sent' && verification.expiresIn === 0;
   const sendLabel = status === 'idle' ? '인증코드 발송' : '재발송';
 
@@ -90,8 +91,8 @@ export function EmailVerificationField({
           >
             {isSending
               ? '발송 중...'
-              : verification.resendIn > 0
-                ? `재발송 (${verification.resendIn}초 후)`
+              : resendIn > 0
+                ? `재발송 (${resendIn}초 후)`
                 : sendLabel}
           </Button>
         )}

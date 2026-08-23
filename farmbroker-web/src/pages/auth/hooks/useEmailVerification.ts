@@ -54,6 +54,13 @@ export function useEmailVerification() {
     [statusFor],
   );
 
+  // 쿨다운도 인증을 요청한 주소에만 적용합니다.
+  // 전역 값을 그대로 쓰면 오타를 고친 새 주소가 이전 주소의 60초에 묶여 발송하지 못합니다.
+  const resendInFor = useCallback(
+    (email: string) => (matchesRequested(email) ? resend.remaining : 0),
+    [matchesRequested, resend.remaining],
+  );
+
   function clearErrors() {
     setCodeError(null);
     setEmailError(null);
@@ -117,7 +124,7 @@ export function useEmailVerification() {
     statusFor,
     isVerifiedFor,
     expiresIn: expiry.remaining,
-    resendIn: resend.remaining,
+    resendInFor,
     sendCode,
     confirmCode,
   };
