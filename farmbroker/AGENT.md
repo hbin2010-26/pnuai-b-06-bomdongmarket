@@ -98,7 +98,7 @@
 - **`SecurityConfig`** (Spring Security 6):
   - `csrf.disable()`, 세션 `STATELESS`, `JwtAuthenticationFilter`를 `UsernamePasswordAuthenticationFilter` 앞에 삽입.
   - `PasswordEncoder` = `BCryptPasswordEncoder` (`common.config.PasswordEncoderConfig`).
-  - **permitAll**: `POST /auth/signup`, `POST /auth/login`, `GET /crops`·`/crops/**`, `GET /spaces`·`/spaces/*`, `GET /products`·`/products/*`, Swagger 경로.
+  - **permitAll**: `POST /auth/signup`, `POST /auth/login`, `POST /auth/email/send-code`, `POST /auth/email/verify-code`(⚠️ 회원가입 전 단계라 토큰이 있을 수 없다 — 빠뜨리면 인증 기능 자체가 401로 막힌다), `GET /crops`·`/crops/**`, `GET /spaces`·`/spaces/*`, `GET /products`·`/products/*`, Swagger 경로.
   - **authenticated**: `GET /spaces/my`·`GET /products/my`(⚠️ 각각 `/spaces/*`·`/products/*` 와일드카드보다 **먼저** 선언되어야 열리지 않음), 그 외 `anyRequest()`.
   - 세부 권한(OWNER만 등록 등)은 각 도메인 서비스에서 처리.
 
@@ -141,6 +141,7 @@ context-path `/api` 접두 (예: `http://localhost:8080/api/auth/signup`). 컨�
 | 도메인 | 메서드 · 경로 | 인증 |
 |--------|----------------|------|
 | auth | `POST /auth/signup`, `POST /auth/login` | ✕ |
+| auth(이메일 인증) | `POST /auth/email/send-code` / `POST /auth/email/verify-code` | ✕ |
 | auth | `POST /auth/logout` | ✓ |
 | user | `GET /users/me` | ✓ |
 | space | `POST /spaces` / `GET /spaces` / `GET /spaces/my` / `GET /spaces/{id}` / `PATCH /spaces/{id}` / `DELETE /spaces/{id}` | 목록·상세 ✕, 그 외 ✓ |
@@ -153,6 +154,7 @@ context-path `/api` 접두 (예: `http://localhost:8080/api/auth/signup`). 컨�
 ### 대표 계약 (강범수 소유 3종)
 
 **`POST /auth/signup`** — `email`(@Email @NotBlank), `password`(@NotBlank @Size(min=8)), `nickname`(@NotBlank). 이메일 중복 시 `DUPLICATE_EMAIL`, BCrypt 해싱 후 저장. 신규 가입은 `CONSUMER`로 시작.
+가입 전 이메일 인증이 필수다 — 중복 검사 직후 `EmailVerificationService.consumeVerified()`가 인증 기록(기본 30분 이내)을 다시 확인하고 소모하며, 없으면 `EMAIL_NOT_VERIFIED`. 프론트를 우회해 이 API를 직접 불러도 막힌다.
 ```json
 { "success": true, "message": "회원가입이 완료되었습니다.",
   "data": { "userId": 1, "email": "owner@example.com", "nickname": "닉네임", "roles": ["CONSUMER"] } }
@@ -178,6 +180,9 @@ context-path `/api` 접두 (예: `http://localhost:8080/api/auth/signup`). 컨�
 - JPA: `ddl-auto`(기본 `update`), `open-in-view: false`, `show-sql`(기본 false)
 - JWT: `jwt.secret`(`JWT_SECRET`), `jwt.expiration`(`JWT_EXPIRATION`, 기본 86400000=1일)
 - Gemini: `GEMINI_API_KEY`, `GEMINI_MODEL`(기본 `gemini-2.5-flash`), `GEMINI_BASE_URL`
+- 메일(SMTP): `MAIL_HOST`(기본 `smtp.gmail.com`), `MAIL_PORT`(기본 587), `MAIL_USERNAME`, `MAIL_PASSWORD`(Gmail 앱 비밀번호).
+  **`MAIL_USERNAME`이 비면 실제 발송 대신 인증번호를 서버 콘솔에 출력한다** — SMTP 계정 없이도 가입 흐름을 돌려보라는 개발용 폴백이다. 운영에 이 값이 비어 있으면 사용자에게는 "발송 완료"로 보이는데 메일은 나가지 않으니 주의.
+- 이메일 인증 정책: `auth.email-verification.*` — `EMAIL_VERIFICATION_TTL_SECONDS`(기본 300), `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS`(기본 60), `EMAIL_VERIFICATION_MAX_ATTEMPTS`(기본 5), `EMAIL_VERIFICATION_VERIFIED_WINDOW_MINUTES`(기본 30)
 
 민감 값(시크릿/DB 비번/API 키)은 하드코딩 금지 — `.env` 또는 환경변수로 주입 (`../.env.example` 참고).
 
