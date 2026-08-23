@@ -172,10 +172,11 @@ export function MyPage() {
         </p>
       ) : null}
 
-      {/* 운영자용 화면이 따로 없어 여기 둡니다. 시세가 언제 것인지 확인하고 직접 받아올 수 있습니다. */}
+      {/* 운영자용 화면이 따로 없어 여기 둡니다. 서버가 늘 떠 있지 않아 매일 04시 배치가
+          건너뛰는 날이 많고, 그때 직접 받아올 수 있어야 합니다. */}
       <section aria-labelledby="kamis-collect-title" className="mt-6">
         <h2 className="sr-only" id="kamis-collect-title">
-          시세 데이터 확인
+          농산물 시세 갱신
         </h2>
         <KamisCollectCard />
       </section>
