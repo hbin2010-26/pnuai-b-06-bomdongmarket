@@ -5,11 +5,13 @@ from __future__ import annotations
 from math import sqrt
 
 
-def calculate_space(space: dict[str, float | str]) -> dict[str, float]:
-    """공실 입력정보로 재배면적, 체적, 길이, 벽 한 면의 면적을 계산한다."""
+def calculate_space(
+    space: dict[str, float | str], crop: dict[str, float | str]
+) -> dict[str, float]:
+    """공실 정보와 작물별 모듈 층 수로 공간 관련 값을 계산한다."""
     total_area = float(space["total_area_m2"])
     cultivable_ratio = float(space["cultivable_ratio"])
-    module_layers = float(space["module_layers"])
+    module_layers = float(crop["module_layers"])
     ceiling_height = float(space["ceiling_height_m"])
 
     if total_area <= 0:
@@ -27,6 +29,7 @@ def calculate_space(space: dict[str, float | str]) -> dict[str, float]:
 
     return {
         "total_area_m2": total_area,
+        "module_layers": module_layers,
         "available_floor_area_m2": available_floor_area,
         "cultivation_area_m2": cultivation_area,
         "volume_m3": volume,

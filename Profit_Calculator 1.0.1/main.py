@@ -1,4 +1,4 @@
-"""Profit Calculator 0.4.1 계산 실행 및 콘솔 진입점."""
+"""Profit Calculator 1.0.1 계산 실행 및 콘솔 진입점."""
 
 from __future__ import annotations
 
@@ -75,12 +75,12 @@ def calculate_all_sites() -> list[dict[str, object]]:
 
     site_results: list[dict[str, object]] = []
     for space_input in spaces:
-        space_result = calculate_space(space_input)
         desired_monthly_rent = float(
             space_input["desired_monthly_rent_krw"]
         )
 
         for crop_name, crop in crops.items():
+            space_result = calculate_space(space_input, crop)
             scenario_row = dict(space_input)
             scenario_row["crop_name"] = crop_name
 
@@ -104,7 +104,9 @@ def calculate_all_sites() -> list[dict[str, object]]:
             water_result = calculate_water_cost(
                 space_result, humidity_result, standard
             )
-            material_result = calculate_material_cost(space_result, crop)
+            material_result = calculate_material_cost(
+                space_result, crop, water_result, standard
+            )
             labor_result = calculate_labor_cost(
                 production_result, crop, standard
             )
@@ -122,6 +124,9 @@ def calculate_all_sites() -> list[dict[str, object]]:
                 monthly_labor_cost_krw=labor_result[
                     "monthly_labor_cost_krw"
                 ],
+                available_floor_area_m2=float(
+                    space_result["available_floor_area_m2"]
+                ),
                 desired_monthly_rent_krw=desired_monthly_rent,
                 standard=standard,
                 contract=contract,

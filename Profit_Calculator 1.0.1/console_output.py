@@ -69,6 +69,7 @@ def print_site_result(site: dict[str, object]) -> None:
         "[1 공간] "
         f"전체 {format_number(float(space['total_area_m2']))}m² | "
         f"사용가능 바닥 {format_number(float(space['available_floor_area_m2']))}m² | "
+        f"작물 모듈 {format_number(float(space['module_layers']), 0)}층 | "
         f"재배 {format_number(float(space['cultivation_area_m2']))}m² | "
         f"체적 {format_number(float(space['volume_m3']))}m³ | "
         f"벽 한 면 {format_number(float(space['wall_area_one_side_m2']))}m²"
@@ -113,7 +114,7 @@ def print_site_result(site: dict[str, object]) -> None:
     print(
         "[8 재료비] "
         f"월 모종비 {format_krw(float(material['monthly_seedling_cost_krw']))} | "
-        f"기타 {format_krw(float(material['monthly_other_material_cost_krw']))} | "
+        f"월 양액비 {format_krw(float(material['monthly_nutrient_cost_krw']))} | "
         f"합계 {format_krw(float(material['monthly_material_cost_krw']))}"
     )
     print(
@@ -143,6 +144,17 @@ def print_site_result(site: dict[str, object]) -> None:
         )
 
     print("\n[10 수익 및 계약형태 추천]")
+    print(
+        f"  월 기기 대여비 "
+        f"{format_krw(float(profit['monthly_equipment_rental_cost_krw']))} "
+        f"(사용가능 바닥면적 "
+        f"{float(profit['equipment_rental_area_m2']):,.1f}m² × "
+        f"{format_krw(float(profit['equipment_rental_rate_krw_m2_month']))}/m²)"
+    )
+    print(
+        f"  월 기타비용 "
+        f"{format_krw(float(profit['monthly_other_cost_krw']))}"
+    )
     print(
         f"  월 기초비용 {format_krw(float(profit['monthly_base_cost_krw']))} | "
         f"월 운영비용 {format_krw(float(profit['monthly_operating_cost_krw']))} | "

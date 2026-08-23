@@ -14,7 +14,9 @@ humidification_sec_kwh_kg,0.07,kWh/kg,가습 SEC
 other_water_l_m2_day,0.2,L/m2day,공실 전체면적 기준 기타 용수
 drainage_ratio,0.3,ratio,배액률(배액량/작물 관수량)
 water_rate_krw_m3,2300,KRW/m3,수도 종합단가
+nutrient_cost_per_l_krw,20,KRW/L,양액 단가
 electricity_rate_krw_kwh,155,KRW/kWh,전기 단일요율
 minimum_wage_krw_hour,10320,KRW/hour,최저시급
 labor_hours_per_kg,0.5,hour/kg,생산량당 노동량
-depreciation_and_other_cost_krw_month,100000,KRW/month,임시 감가상각 등 기타 월 비용
+equipment_rental_cost_krw_m2_month,22000,KRW/m2/month,사용가능 바닥면적 기준 월 기기 대여비
+other_cost_krw_month,300000,KRW/month,기타비용
