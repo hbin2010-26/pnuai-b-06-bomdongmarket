@@ -18,6 +18,15 @@ public enum ErrorCode {
     INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "현재 비밀번호가 올바르지 않습니다."),
     ACTIVE_CONTRACT_EXISTS(HttpStatus.CONFLICT, "진행 중인 계약이 있어 회원 탈퇴할 수 없습니다."),
 
+    // ── 이메일 인증 (회원가입 전 단계) ───────────────────────────────────────
+    // 발송 이력이 아예 없는 경우도 EXPIRED로 합쳤다 — 사용자가 할 일이 "재발송"으로 똑같다.
+    EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "인증번호가 만료되었습니다. 다시 발송해 주세요."),
+    EMAIL_VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않습니다."),
+    EMAIL_VERIFICATION_ATTEMPT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다. 인증번호를 다시 발송해 주세요."),
+    EMAIL_VERIFICATION_TOO_FREQUENT(HttpStatus.TOO_MANY_REQUESTS, "인증번호는 1분에 한 번만 보낼 수 있습니다."),
+    EMAIL_VERIFICATION_SEND_FAILED(HttpStatus.BAD_GATEWAY, "인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요."),
+    EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "이메일 인증을 완료해 주세요."),
+
     // ── space ────────────────────────────────────────────────────────────────
     SPACE_NOT_FOUND(HttpStatus.NOT_FOUND, "공간을 찾을 수 없습니다."),
     SPACE_NOT_AVAILABLE(HttpStatus.CONFLICT, "현재 매칭 가능한 상태의 공간이 아닙니다."),

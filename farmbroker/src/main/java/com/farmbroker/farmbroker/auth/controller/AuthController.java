@@ -1,10 +1,14 @@
 package com.farmbroker.farmbroker.auth.controller;
 
+import com.farmbroker.farmbroker.auth.dto.EmailVerificationConfirmRequest;
+import com.farmbroker.farmbroker.auth.dto.EmailVerificationSendRequest;
+import com.farmbroker.farmbroker.auth.dto.EmailVerificationSendResponse;
 import com.farmbroker.farmbroker.auth.dto.LoginRequest;
 import com.farmbroker.farmbroker.auth.dto.LoginResponse;
 import com.farmbroker.farmbroker.auth.dto.SignupRequest;
 import com.farmbroker.farmbroker.auth.dto.SignupResponse;
 import com.farmbroker.farmbroker.auth.service.AuthService;
+import com.farmbroker.farmbroker.auth.service.EmailVerificationService;
 import com.farmbroker.farmbroker.common.response.ApiResponse;
 import com.farmbroker.farmbroker.security.AuthCookieProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,14 +24,34 @@ import org.springframework.web.bind.annotation.*;
 // 인증 관련 엔드포인트를 노출하는 컨트롤러.
 // 얇게 유지: 요청을 받아 서비스에 위임하고, 결과를 ApiResponse로 감싸 반환하는 역할만 한다.
 // 비즈니스 로직은 일절 포함하지 않는다.
-@Tag(name = "인증", description = "회원가입 · 로그인 · 로그아웃 API")
+@Tag(name = "인증", description = "이메일 인증 · 회원가입 · 로그인 · 로그아웃 API")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
     private final AuthCookieProvider authCookieProvider;
+
+    // POST /api/auth/email/send-code — 인증 불필요 (SecurityConfig permitAll)
+    // 회원가입 전 단계라 아직 계정이 없다. 발송 성공/실패를 프론트가 바로 알아야 하므로 동기로 보낸다.
+    @Operation(summary = "이메일 인증번호 발송", description = "회원가입 전 단계. 6자리 인증번호를 메일로 보낸다.")
+    @PostMapping("/email/send-code")
+    public ApiResponse<EmailVerificationSendResponse> sendEmailVerificationCode(
+            @RequestBody @Valid EmailVerificationSendRequest request) {
+        EmailVerificationSendResponse response = emailVerificationService.sendCode(request.getEmail());
+        return ApiResponse.success("인증번호를 보냈습니다. 메일함을 확인해 주세요.", response);
+    }
+
+    // POST /api/auth/email/verify-code — 인증 불필요 (SecurityConfig permitAll)
+    @Operation(summary = "이메일 인증번호 확인")
+    @PostMapping("/email/verify-code")
+    public ApiResponse<Void> verifyEmailVerificationCode(
+            @RequestBody @Valid EmailVerificationConfirmRequest request) {
+        emailVerificationService.verifyCode(request.getEmail(), request.getCode());
+        return ApiResponse.success("이메일 인증이 완료되었습니다.", null);
+    }
 
     // POST /api/auth/signup
     @Operation(summary = "회원가입")

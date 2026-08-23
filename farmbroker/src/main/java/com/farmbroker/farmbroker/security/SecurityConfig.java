@@ -50,8 +50,11 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 인증 불필요 — 회원가입 · 로그인
-                .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
+                // 인증 불필요 — 회원가입 · 로그인 · 회원가입 전 이메일 인증
+                // (이메일 인증은 계정이 만들어지기 전 단계라 토큰이 있을 수 없다)
+                .requestMatchers(HttpMethod.POST,
+                        "/auth/signup", "/auth/login",
+                        "/auth/email/send-code", "/auth/email/verify-code").permitAll()
                 // 인증 불필요 — 작물 백과사전 공개 조회 (백엔드 3, 2026-07-05 협의로 백엔드 3이 직접 추가)
                 .requestMatchers(HttpMethod.GET, "/crops", "/crops/**").permitAll()
                 // 내 공간 조회는 인증 유지 — 아래 /spaces/* 와일드카드가 /spaces/my까지 열지 않도록 반드시 먼저 선언

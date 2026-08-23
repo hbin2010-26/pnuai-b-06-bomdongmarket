@@ -20,6 +20,23 @@ spring:
     properties:
       hibernate:
         format_sql: "${JPA_FORMAT_SQL:false}"
+  mail:
+    # Gmail 앱 비밀번호(계정 2단계 인증 필수)를 쓴다.
+    # MAIL_USERNAME이 비어 있으면 실제 발송 대신 인증번호를 서버 콘솔에 찍는다(로컬 개발용).
+    host: "${MAIL_HOST:smtp.gmail.com}"
+    port: ${MAIL_PORT:587}
+    username: "${MAIL_USERNAME:}"
+    password: "${MAIL_PASSWORD:}"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          # 타임아웃이 없으면 Gmail 연결이 늘어질 때 요청 스레드가 그대로 묶인다.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: "${PORT:8080}"
@@ -67,3 +84,12 @@ kamis:
   enabled: ${KAMIS_ENABLED:true}
   # 수집 주기. 기본은 매일 04:00.
   cron: "${KAMIS_CRON:0 0 4 * * *}"
+
+# 회원가입 전 이메일 인증. 발표 중에 값을 조정해야 할 수 있어 코드에 박지 않는다.
+auth:
+  email-verification:
+    ttl-seconds: ${EMAIL_VERIFICATION_TTL_SECONDS:300}
+    resend-cooldown-seconds: ${EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}
+    max-attempts: ${EMAIL_VERIFICATION_MAX_ATTEMPTS:5}
+    # 인증을 마치고 이 시간 안에 가입해야 한다.
+    verified-window-minutes: ${EMAIL_VERIFICATION_VERIFIED_WINDOW_MINUTES:30}
