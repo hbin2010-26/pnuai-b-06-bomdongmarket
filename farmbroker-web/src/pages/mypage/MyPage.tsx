@@ -8,6 +8,7 @@ import { ROLE_LABELS, sortRoles } from '@/auth/roles';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
+import { KamisCollectCard } from '@/pages/mypage/components/KamisCollectCard';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ROUTES } from '@/constants/routes';
@@ -170,6 +171,14 @@ export function MyPage() {
           {logoutError}
         </p>
       ) : null}
+
+      {/* 운영자용 화면이 따로 없어 여기 둡니다. 시세가 언제 것인지 확인하고 직접 받아올 수 있습니다. */}
+      <section aria-labelledby="kamis-collect-title" className="mt-6">
+        <h2 className="sr-only" id="kamis-collect-title">
+          시세 데이터 확인
+        </h2>
+        <KamisCollectCard />
+      </section>
     </PageContainer>
   );
 }

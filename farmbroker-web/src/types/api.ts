@@ -231,6 +231,26 @@ export interface ProfitEstimate {
 }
 
 // 등록 전 예측이라 spaceId 없이 공간 등록 폼의 면적·월세만 보냅니다.
+// KAMIS 시세 수동 수집 결과입니다.
+export interface KamisCollectResult {
+  collectedFor: string;
+  // 서비스 키가 없거나 이미 수집이 돌고 있으면 true 입니다.
+  skipped: boolean;
+  updated: number;
+  missing: number;
+  failed: number;
+  items: KamisCollectItem[];
+}
+
+export interface KamisCollectItem {
+  cropName: string;
+  // UPDATED=갱신, MISSING=조사 없음(비제철 등), FAILED=저장 실패
+  status: string;
+  pricePerKgKrw: number | null;
+  surveyedOn: string | null;
+  sampleCount: number | null;
+}
+
 export interface ProfitEstimateInput {
   area: number;
   monthlyRent: number;
