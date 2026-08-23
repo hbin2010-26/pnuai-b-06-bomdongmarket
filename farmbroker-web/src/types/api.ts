@@ -66,6 +66,23 @@ export interface SignupInput extends LoginInput {
   nickname: string;
 }
 
+// 회원가입 전 이메일 인증. 서버가 가입 시점에 이메일로 인증 기록을 다시 확인하므로
+// SignupInput에 토큰 같은 값을 실어 보낼 필요가 없다.
+export interface EmailVerificationSendInput {
+  email: string;
+}
+
+export interface EmailVerificationSendResult {
+  // 정책 값은 서버 설정으로 바뀔 수 있어 타이머가 하드코딩하지 않도록 응답으로 받는다.
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+export interface EmailVerificationConfirmInput {
+  email: string;
+  code: string;
+}
+
 export interface PageResponse<T> {
   content: T[];
   page: number;

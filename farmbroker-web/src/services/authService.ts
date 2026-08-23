@@ -2,7 +2,15 @@ import { ApiError, apiRequest, USE_MOCKS } from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getStoredUser } from '@/auth/session';
 import { mockDelay } from '@/mocks/handlers';
-import type { LoginInput, LoginResult, SignupInput, User } from '@/types/api';
+import type {
+  EmailVerificationConfirmInput,
+  EmailVerificationSendInput,
+  EmailVerificationSendResult,
+  LoginInput,
+  LoginResult,
+  SignupInput,
+  User,
+} from '@/types/api';
 
 // 목 사용자는 공간을 등록해 본 소비자 — 여러 역할을 동시에 가진 상태를 기본값으로 둡니다.
 const mockUser: User = {
@@ -35,6 +43,46 @@ export async function logout(): Promise<void> {
   }
 
   await apiRequest<void>(ENDPOINTS.auth.logout, { method: 'POST' });
+}
+
+// 목 환경에서 인증 성공 경로를 재현하기 위한 고정 인증번호입니다. 테스트가 이 값을 가져다 씁니다.
+export const MOCK_EMAIL_VERIFICATION_CODE = '123456';
+
+export async function sendEmailVerificationCode(
+  input: EmailVerificationSendInput,
+): Promise<EmailVerificationSendResult> {
+  if (USE_MOCKS) {
+    await mockDelay();
+    return { expiresInSeconds: 300, resendAfterSeconds: 60 };
+  }
+
+  const response = await apiRequest<EmailVerificationSendResult>(
+    ENDPOINTS.auth.sendEmailCode,
+    { method: 'POST', body: input },
+  );
+  return response.data;
+}
+
+export async function verifyEmailCode(
+  input: EmailVerificationConfirmInput,
+): Promise<void> {
+  if (USE_MOCKS) {
+    await mockDelay();
+    // 실패 경로도 테스트할 수 있도록 서버와 같은 메시지·errorCode로 던집니다.
+    if (input.code !== MOCK_EMAIL_VERIFICATION_CODE) {
+      throw new ApiError(
+        '인증번호가 일치하지 않습니다.',
+        400,
+        'EMAIL_VERIFICATION_CODE_MISMATCH',
+      );
+    }
+    return;
+  }
+
+  await apiRequest<void>(ENDPOINTS.auth.verifyEmailCode, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export async function signup(input: SignupInput): Promise<User> {
