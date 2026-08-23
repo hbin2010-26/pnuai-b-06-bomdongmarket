@@ -84,7 +84,9 @@ public class EmailVerificationService {
         LocalDateTime now = LocalDateTime.now();
 
         // 발송 이력이 없는 경우도 만료와 같은 코드로 안내한다 — 어느 쪽이든 할 일은 재발송이다.
-        EmailVerification record = verificationRepository.findByEmail(email)
+        // 행을 잠그고 읽어 조회 · 검사 · 증가를 직렬화한다. 잠그지 않으면 병렬 요청이
+        // 같은 attemptCount를 읽고 검사를 통과해 시도 제한을 우회할 수 있다.
+        EmailVerification record = verificationRepository.findWithLockByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED));
 
         if (record.expired(now)) {

@@ -116,7 +116,7 @@ class EmailVerificationServiceTest {
     @DisplayName("코드가 일치하면 인증 완료 시각을 기록한다")
     void verifyCode_match_marksVerified() {
         EmailVerification existing = record("123456", LocalDateTime.now(), properties.ttl());
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         service().verifyCode(EMAIL, "123456");
 
@@ -127,7 +127,7 @@ class EmailVerificationServiceTest {
     @DisplayName("대소문자와 공백이 달라도 같은 인증 기록을 찾는다")
     void verifyCode_normalizesEmail() {
         EmailVerification existing = record("123456", LocalDateTime.now(), properties.ttl());
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         service().verifyCode("  Farmer@Example.COM  ", "123456");
 
@@ -138,7 +138,7 @@ class EmailVerificationServiceTest {
     @DisplayName("코드가 틀리면 시도 횟수가 늘고 CODE_MISMATCH를 던진다")
     void verifyCode_mismatch_increasesAttempt() {
         EmailVerification existing = record("123456", LocalDateTime.now(), properties.ttl());
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> service().verifyCode(EMAIL, "000000"))
                 .isInstanceOf(BusinessException.class)
@@ -153,7 +153,7 @@ class EmailVerificationServiceTest {
     void verifyCode_expired_throws() {
         EmailVerification existing =
                 record("123456", LocalDateTime.now().minusMinutes(10), properties.ttl());
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> service().verifyCode(EMAIL, "123456"))
                 .isInstanceOf(BusinessException.class)
@@ -163,7 +163,7 @@ class EmailVerificationServiceTest {
     @Test
     @DisplayName("발송 이력이 없으면 EMAIL_VERIFICATION_EXPIRED를 던진다")
     void verifyCode_noRecord_throwsExpired() {
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.empty());
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().verifyCode(EMAIL, "123456"))
                 .isInstanceOf(BusinessException.class)
@@ -175,7 +175,7 @@ class EmailVerificationServiceTest {
     void verifyCode_attemptsExceeded_throws() {
         EmailVerification existing = record("123456", LocalDateTime.now(), properties.ttl());
         ReflectionTestUtils.setField(existing, "attemptCount", 5);
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> service().verifyCode(EMAIL, "123456"))
                 .isInstanceOf(BusinessException.class)

@@ -17,6 +17,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -32,7 +41,9 @@ import static org.mockito.Mockito.verify;
 //
 // [한계] H2(MySQL 모드)라 스키마 의미까지 MySQL과 같지는 않다.
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:emailverification;MODE=MySQL;DB_CLOSE_DELAY=-1",
+        // LOCK_TIMEOUT을 올린다 — 동시성 테스트가 한 행에 20개 트랜잭션을 몰아
+        // H2 기본 타임아웃(1초)에 걸리면 잠금이 동작하는데도 테스트가 깨진다.
+        "spring.datasource.url=jdbc:h2:mem:emailverification;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=20000",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -120,6 +131,52 @@ class EmailVerificationIntegrationTest {
         assertThatThrownBy(() -> emailVerificationService.verifyCode(EMAIL, "000000"))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_ATTEMPT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("동시에 틀린 인증번호를 넣어도 시도 제한을 넘지 못한다")
+    void concurrentWrongAttemptsCannotBypassLimit() throws Exception {
+        sendAndCaptureCode();
+
+        int threads = 20;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch fire = new CountDownLatch(1);
+        AtomicInteger mismatched = new AtomicInteger();
+
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    // 순차 실행으로 흘러가면 잠금이 없어도 통과하므로, 모두 모인 뒤 동시에 출발한다.
+                    ready.countDown();
+                    fire.await();
+                    try {
+                        emailVerificationService.verifyCode(EMAIL, "000000");
+                    } catch (BusinessException caught) {
+                        if (caught.getErrorCode() == ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH) {
+                            mismatched.incrementAndGet();
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            fire.countDown();
+            for (Future<?> future : futures) {
+                future.get(60, TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // 잠금 없이 읽으면 20건이 모두 같은 attemptCount를 보고 제한을 통과한다.
+        assertThat(mismatched.get()).as("제한을 통과한 오답 횟수").isEqualTo(5);
+        assertThat(verificationRepository.findByEmail(EMAIL))
+                .get()
+                .extracting("attemptCount")
+                .isEqualTo(5);
     }
 
     @Test
