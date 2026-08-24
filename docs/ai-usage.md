@@ -1,35 +1,36 @@
 # AI 도구 활용 및 생성 코드 검증
 
-> 프로젝트: FarmBroker · 팀: 봄동마켓 · 작성일: 2026.08.24
+> 프로젝트: FarmBroker · 팀: 봄동마켓
 
 AI 결과는 자동 병합하지 않고 spec, 저장소 규칙, 테스트와 팀원 리뷰를 기준으로 검토·수정했습니다.
 
 ## 1. 활용 도구와 범위
 
-| 도구 | 활용 범위 |
-|:---:|:---|
-| Claude Code | Superpowers 플러그인의 spec·TDD 파이프라인, Custom Skills, SubAgent 병렬 구현, superpowers reviewer를 이용한 PR 검토 |
-| Codex | 코드 분석, 구현·리팩터링, 테스트·문서 작성과 구현 근거 확인 |
-| 프로젝트 전용 Skill | `frontend-design-system-bootstrap`과 `frontend-ui-consistency`를 직접 제작·사용해 디자인 규칙 수립, UI 구현과 리뷰 절차를 자동화 |
-| ChatGPT·Claude·Gemini | 요구사항, 아키텍처·API·ERD와 예외 상황 교차 검토 |
-| Gemini API | 서비스에서 공간·수익 조건에 맞는 작물 추천 근거를 구조화된 응답으로 생성 |
-| Figma·ChatGPT | 와이어프레임, UI 시안과 사용자 흐름 검토 |
+|         도구          | 활용 범위                                                                                                                        |
+| :-------------------: | :------------------------------------------------------------------------------------------------------------------------------- |
+|      Claude Code      | Superpowers 플러그인의 spec·TDD 파이프라인, Custom Skills, SubAgent 병렬 구현, superpowers reviewer를 이용한 PR 검토             |
+|         Codex         | 코드 분석, 구현·리팩터링, 테스트·문서 작성과 구현 근거 확인                                                                      |
+|  프로젝트 전용 Skill  | `frontend-design-system-bootstrap`과 `frontend-ui-consistency`를 직접 제작·사용해 디자인 규칙 수립, UI 구현과 리뷰 절차를 자동화 |
+| ChatGPT·Claude·Gemini | 요구사항, 아키텍처·API·ERD와 예외 상황 교차 검토                                                                                 |
+|      Gemini API       | 서비스에서 공간·수익 조건에 맞는 작물 추천 근거를 구조화된 응답으로 생성                                                         |
+|     Figma·ChatGPT     | 와이어프레임, UI 시안과 사용자 흐름 검토                                                                                         |
 
-## 2. 개발 적용 방식
+## 2. 저장소 하네스와 적용
 
-1. 구현 전에 `docs/specs`에 목표·범위·비목표를 작성·검토하고, 확정 내용을 `docs/plans`에서 파일·실패 테스트·검증 명령 단위로 나눴습니다.
-2. `frontend-design-system-bootstrap` Skill을 제작·사용해 기존 UI를 감사하고 토큰·공통 컴포넌트·접근성·반응형 규칙을 디자인 문서 3종으로 규격화했습니다. 이후 작업에는 `frontend-ui-consistency` Skill을 적용했습니다.
-3. 영역별 `AGENT` 문서에 Skill 사용 조건과 규칙을 연결해 다른 팀원이나 새 Agent도 세션과 관계없이 같은 디자인·구조·보안·검증 방식을 따르게 했습니다.
-4. SubAgent에는 소유 범위와 참조 문서를 지정하고, Karpathy 기반 하네스의 가정 명시·단순성·최소 변경·검증 가능한 목표 원칙을 공통 적용했습니다.
+하네스는 Agent나 세션이 바뀌어도 같은 입력·구현·검증 절차를 따르게 하는 공통 실행 체계입니다.
+
+`공통 AGENTS → 영역별 AGENT → spec·plan → Skill·Subagent-Driven → reviewer·CI`
+
+- **Harness(Karpathy 기반 지침):** [GitHub 약 20.6만 Star의 공개 지침](https://github.com/multica-ai/andrej-karpathy-skills)을 차용해 프로젝트 `AGENTS.md`로 이식하고 가정 명시·단순성·최소 변경·검증 목표를 공통 적용했습니다.
+- **영역 컨텍스트:** 프론트엔드·백엔드 `AGENT`에 버전, 명명, 계층, 보안, 디자인과 검증 명령을 기록했습니다.
+- **실행 절차:** `docs/specs`를 검토하고 `docs/plans`에서 파일·실패 테스트·검증 명령으로 나눠 Superpowers와 Subagent-Driven 방식으로 실행했습니다.
+- **전용 Skill:** `frontend-design-system-bootstrap`으로 UI를 규격화하고 `frontend-ui-consistency`로 구현·리뷰했습니다.
+- **품질 게이트:** reviewer, 팀원 diff 리뷰, PR 체크리스트와 CI를 통과한 변경만 병합했습니다.
 
 ## 3. AI 생성 코드 검증·수정 방식
 
 - **TDD:** 실패 테스트를 먼저 확인하고 최소 구현을 추가한 뒤 관련·전체 테스트로 회귀를 점검했습니다.
-- **계약 검토:** DTO, API 응답, 인증·권한과 도메인 소유 경계를 `AGENT` 문서 및 기존 코드와 대조했습니다. 범위를 벗어난 리팩터링과 추측성 기능은 제거했습니다.
-- **Reviewer·CI:** superpowers reviewer와 팀원이 diff·누락 테스트·회귀 위험을 검토했습니다. PR에 검증 결과를 남기고 프론트엔드 lint·Vitest·build, 백엔드 Gradle build·JUnit을 통과한 뒤 병합했습니다.
-- **디자인 검증:** 전용 Skill의 `validate-frontend.sh`와 체크리스트로 디자인 토큰, 공통 컴포넌트, 접근성, 상태 화면과 반응형 규칙을 확인했습니다. Skill 메타데이터는 CI에서 검증하고 UI 변경은 PR 템플릿에 적용 화면과 검증 결과를 기록했습니다.
-- **서비스 AI 검증:** Gemini가 작물을 직접 결정하지 않도록 서버 수익 계산기의 순위를 기준으로 후보를 제한했습니다. 응답의 작물 ID, 중복, 개수와 추천 근거를 검증하고 형식·의미 오류는 한 번 재시도한 뒤 오류로 처리합니다. 타임아웃·쿼터 초과 시에는 최근 저장 추천이 있을 때만 이를 재사용하고 수익 계산값은 현재 조건으로 다시 산정합니다.
-
-## 4. 확인 가능한 결과
-
-산출물은 Agent 지침 3개, 전용 Skill 2개, 디자인 문서 3개, spec 4개와 plan 2개입니다. 백엔드 테스트 파일은 44개, 프론트엔드는 55개이며, 측정 자료가 없는 시간 단축률은 제시하지 않았습니다.
+- **계약 검토:** DTO, API, 인증·권한과 도메인 경계를 기존 코드와 대조하고 추측성 기능은 제거했습니다.
+- **Reviewer·CI:** reviewer와 팀원이 diff·회귀 위험을 검토하고 프론트엔드 lint·Vitest·build, 백엔드 Gradle build·JUnit 결과를 PR에 기록했습니다.
+- **디자인 검증:** Skill 스크립트·체크리스트와 CI로 토큰, 공통 컴포넌트, 접근성, 상태 화면과 반응형 규칙을 확인했습니다.
+- **서비스 AI 검증:** 서버 계산 순위로 Gemini 후보를 제한하고 ID·중복·개수·근거를 검증했습니다. 오류는 1회 재시도하며 타임아웃·쿼터 초과 때만 최근 저장 추천을 재사용합니다.
