@@ -75,4 +75,15 @@ public class Crop {
         this.imageUrl = imageUrl;
         this.dataSource = dataSource != null ? dataSource : CropDataSource.SEED;
     }
+
+    // 시드 단가를 다시 맞춘다. 이 값이 수익 계산의 단일 가격 소스라, 시드에서 고친 단가가
+    // 이미 돌고 있는 환경에 반영되지 않으면 계산 결과가 코드와 어긋난 채로 남는다.
+    // 사람이 손본 행(dataSource != SEED)은 건드리지 않도록 호출부에서 걸러 준다.
+    public void applySeedPrice(Integer avgPricePerKg) {
+        this.avgPricePerKg = avgPricePerKg;
+    }
+
+    public boolean isSeed() {
+        return dataSource == CropDataSource.SEED;
+    }
 }
