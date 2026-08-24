@@ -18,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
 // 목 없이 실제 트랜잭션에 대고 도는 검증.
@@ -187,5 +190,64 @@ class EmailVerificationIntegrationTest {
         assertThatThrownBy(() -> emailVerificationService.sendCode(EMAIL))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_TOO_FREQUENT);
+    }
+
+    @Test
+    @DisplayName("동시에 최초 발송을 요청해도 메일은 한 번만 나간다")
+    void concurrentFirstSendsSendMailOnce() throws Exception {
+        int threads = 10;
+        AtomicInteger sent = new AtomicInteger();
+        AtomicInteger succeeded = new AtomicInteger();
+        AtomicInteger tooFrequent = new AtomicInteger();
+        List<Throwable> unexpected = Collections.synchronizedList(new ArrayList<>());
+
+        // 발송을 잠시 붙잡아 경쟁 구간을 넓힌다 — 즉시 반환하면 예약이 없어도 우연히 줄을 서서 통과할 수 있다.
+        doAnswer(invocation -> {
+            sent.incrementAndGet();
+            Thread.sleep(200);
+            return null;
+        }).when(mailSender).send(anyString(), anyString());
+
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch fire = new CountDownLatch(1);
+
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    ready.countDown();
+                    fire.await();
+                    try {
+                        emailVerificationService.sendCode(EMAIL);
+                        succeeded.incrementAndGet();
+                    } catch (BusinessException caught) {
+                        if (caught.getErrorCode() == ErrorCode.EMAIL_VERIFICATION_TOO_FREQUENT) {
+                            tooFrequent.incrementAndGet();
+                        } else {
+                            unexpected.add(caught);
+                        }
+                    } catch (RuntimeException caught) {
+                        // unique 충돌이 그대로 새면 공개 엔드포인트가 500을 돌려준다.
+                        unexpected.add(caught);
+                    }
+                    return null;
+                }));
+            }
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            fire.countDown();
+            for (Future<?> future : futures) {
+                future.get(60, TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // 예약 없이 발송부터 하면 10건이 모두 SMTP까지 진행하고 9건이 unique 충돌로 터진다.
+        assertThat(unexpected).as("쿨다운 외 예외").isEmpty();
+        assertThat(sent.get()).as("실제 발송 횟수").isEqualTo(1);
+        assertThat(succeeded.get()).isEqualTo(1);
+        assertThat(tooFrequent.get()).isEqualTo(threads - 1);
     }
 }
