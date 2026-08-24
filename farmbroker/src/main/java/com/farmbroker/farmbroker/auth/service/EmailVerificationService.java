@@ -9,6 +9,7 @@ import com.farmbroker.farmbroker.common.exception.BusinessException;
 import com.farmbroker.farmbroker.common.exception.ErrorCode;
 import com.farmbroker.farmbroker.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class EmailVerificationService {
     // 메일 발송이 트랜잭션 안에 있어 SMTP 응답을 기다리는 1~3초 동안 DB 커넥션을 붙잡는다.
     // 동시 접속이 한 자릿수인 규모라 커넥션 풀 압박이 없고, 트랜잭션을 쪼개려면
     // 자기호출 프록시 문제를 피할 별도 빈이 필요해 단순한 쪽을 택했다.
+    // 그동안 해당 이메일 행의 잠금도 함께 붙잡지만, 막히는 건 같은 주소의 중복 발송뿐이다.
     @Transactional
     public EmailVerificationSendResponse sendCode(String rawEmail) {
         String email = normalize(rawEmail);
@@ -53,7 +55,10 @@ public class EmailVerificationService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        EmailVerification record = verificationRepository.findByEmail(email).orElse(null);
+
+        // 행을 잠그고 읽어 같은 주소의 병렬 요청을 줄 세운다.
+        // 잠금 없이 읽으면 동시 재발송이 모두 같은 sentAt을 보고 쿨다운 검사를 통과한다.
+        EmailVerification record = verificationRepository.findWithLockByEmail(email).orElse(null);
 
         if (record != null && record.resendBlocked(now, properties.resendCooldown())) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOO_FREQUENT);
@@ -61,15 +66,24 @@ public class EmailVerificationService {
 
         String code = generateCode();
 
-        // 저장보다 발송이 먼저다 — 발송이 실패하면 트랜잭션이 롤백되어 쿨다운이 시작되지 않는다.
-        // (메일이 오지도 않았는데 60초 동안 재발송이 막히면 사용자가 빠져나갈 길이 없다.)
-        mailSender.send(email, code);
-
+        // 발송 전에 행을 먼저 예약한다 — 잠글 행이 없는 최초 요청은 이 unique 삽입이 유일한 직렬화 지점이다.
+        // 생략하면 동시 최초 요청이 모두 빈 조회 결과를 본 뒤 SMTP까지 진행해 한 주소로 메일이
+        // 동시 건수만큼 나가고, 뒤늦게 저장하는 쪽은 unique 충돌로 500이 된다.
         if (record == null) {
-            verificationRepository.save(EmailVerification.issue(email, code, now, properties.ttl()));
+            try {
+                verificationRepository.saveAndFlush(
+                        EmailVerification.issue(email, code, now, properties.ttl()));
+            } catch (DataIntegrityViolationException duplicate) {
+                // 예약에 졌다는 건 방금 다른 요청이 같은 주소로 발송했다는 뜻이다.
+                throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOO_FREQUENT);
+            }
         } else {
             record.reissue(code, now, properties.ttl());
         }
+
+        // 발송이 실패하면 트랜잭션이 롤백되면서 예약도 함께 풀려 쿨다운이 시작되지 않는다.
+        // (메일이 오지도 않았는데 60초 동안 재발송이 막히면 사용자가 빠져나갈 길이 없다.)
+        mailSender.send(email, code);
 
         return new EmailVerificationSendResponse(
                 properties.ttlSeconds(), properties.resendCooldownSeconds());

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
@@ -63,7 +64,7 @@ class EmailVerificationServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_EMAIL);
 
         verify(mailSender, never()).send(any(), any());
-        verify(verificationRepository, never()).save(any());
+        verify(verificationRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -71,7 +72,7 @@ class EmailVerificationServiceTest {
     void sendCode_withinCooldown_throws() {
         given(userRepository.existsByEmail(EMAIL)).willReturn(false);
         // 방금 보낸 기록 — 60초 쿨다운이 아직 남아 있다.
-        given(verificationRepository.findByEmail(EMAIL))
+        given(verificationRepository.findWithLockByEmail(EMAIL))
                 .willReturn(Optional.of(record("123456", LocalDateTime.now(), properties.ttl())));
 
         assertThatThrownBy(() -> service().sendCode(EMAIL))
@@ -87,29 +88,44 @@ class EmailVerificationServiceTest {
         given(userRepository.existsByEmail(EMAIL)).willReturn(false);
         EmailVerification existing =
                 record("111111", LocalDateTime.now().minusMinutes(5), properties.ttl());
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.of(existing));
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.of(existing));
 
         EmailVerificationSendResponse response = service().sendCode(EMAIL);
 
         assertThat(response.expiresInSeconds()).isEqualTo(300);
         assertThat(response.resendAfterSeconds()).isEqualTo(60);
-        verify(verificationRepository, never()).save(any());
+        verify(verificationRepository, never()).saveAndFlush(any());
         assertThat(existing.getCode()).hasSize(6);
     }
 
     @Test
-    @DisplayName("메일 발송이 실패하면 인증 정보를 저장하지 않는다")
-    void sendCode_mailFailure_doesNotSave() {
+    @DisplayName("메일 발송이 실패하면 예외가 그대로 올라가 예약한 행까지 롤백된다")
+    void sendCode_mailFailure_propagates() {
         given(userRepository.existsByEmail(EMAIL)).willReturn(false);
-        given(verificationRepository.findByEmail(EMAIL)).willReturn(Optional.empty());
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.empty());
         willThrow(new BusinessException(ErrorCode.EMAIL_VERIFICATION_SEND_FAILED))
                 .given(mailSender).send(any(), any());
 
+        // 발송보다 예약이 먼저라 저장 자체는 일어나지만, 예외가 올라가면 트랜잭션이 되돌린다.
         assertThatThrownBy(() -> service().sendCode(EMAIL))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_SEND_FAILED);
+    }
 
-        verify(verificationRepository, never()).save(any());
+    @Test
+    @DisplayName("같은 주소를 동시에 예약하다 밀리면 메일을 보내지 않고 TOO_FREQUENT를 던진다")
+    void sendCode_reservationConflict_throwsTooFrequent() {
+        given(userRepository.existsByEmail(EMAIL)).willReturn(false);
+        given(verificationRepository.findWithLockByEmail(EMAIL)).willReturn(Optional.empty());
+        // 다른 요청이 방금 같은 이메일 행을 만든 상황 — unique 제약이 여기서 걸린다.
+        willThrow(new DataIntegrityViolationException("duplicate email"))
+                .given(verificationRepository).saveAndFlush(any());
+
+        assertThatThrownBy(() -> service().sendCode(EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_VERIFICATION_TOO_FREQUENT);
+
+        verify(mailSender, never()).send(any(), any());
     }
 
     @Test
