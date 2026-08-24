@@ -20,7 +20,7 @@ class KamisPriceProviderTest {
 
     private static final KamisProperties PROPERTIES =
             new KamisProperties("key", null, "02", null, "상품", 7, 14, true,
-                    "Asia/Seoul", 3000, 5000);
+                    true, 0, "Asia/Seoul", 3000, 5000);
 
     @Mock
     private MarketPriceSnapshotRepository snapshotRepository;

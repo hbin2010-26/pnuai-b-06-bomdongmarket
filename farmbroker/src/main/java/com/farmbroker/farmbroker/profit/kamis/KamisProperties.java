@@ -23,6 +23,12 @@ public record KamisProperties(
         // 한 번 수집할 때 거슬러 올라가 볼 일수. 주말·공휴일에는 조사가 없어 여유를 둔다.
         int lookbackDays,
         boolean enabled,
+        // 화면의 "시세 갱신" 버튼을 열어 둘지. 이 경로는 로그인만 하면 누구나 부를 수 있어,
+        // 할당량이 빠듯하면 끄고 새벽 배치만 남길 수 있어야 한다(#129 리뷰).
+        Boolean manualCollectEnabled,
+        // 수동 수집의 최소 간격(초). 동시 실행 차단만으로는 순차 반복 호출을 막지 못한다.
+        // 0 이면 간격을 두지 않는다.
+        Integer manualCooldownSeconds,
         // 서버 기본 시간대가 달라도 스케줄·조회일·수집시각이 같은 날짜 기준을 쓰게 한다.
         String timezone,
         // 외부 API가 응답하지 않을 때 수집 스레드를 계속 붙잡지 않도록 연결과 읽기 정체를 제한한다.
@@ -42,6 +48,9 @@ public record KamisProperties(
         ZoneId.of(timezone);
         if (connectTimeoutMs <= 0) connectTimeoutMs = 3000;
         if (readTimeoutMs <= 0) readTimeoutMs = 5000;
+        // 기본은 열어 둔다 — 서버가 유휴 시 내려가 새벽 배치를 자주 거르기 때문이다.
+        if (manualCollectEnabled == null) manualCollectEnabled = true;
+        if (manualCooldownSeconds == null || manualCooldownSeconds < 0) manualCooldownSeconds = 600;
     }
 
     // 기존 생성 경로도 환경 설정과 같은 기본값으로 동작하도록 위임한다.
@@ -50,7 +59,13 @@ public record KamisProperties(
     public static KamisProperties of(String serviceKey, String baseUrl, String saleType, String region, String grade,
                                      int freshnessDays, int lookbackDays, boolean enabled) {
         return new KamisProperties(serviceKey, baseUrl, saleType, region, grade, freshnessDays, lookbackDays, enabled,
-                "Asia/Seoul", 3000, 5000);
+                null, null, "Asia/Seoul", 3000, 5000);
+    }
+
+    // 수동 수집 설정만 바꾼 사본. 테스트와 설정 확인용이다.
+    public KamisProperties withManualCollect(boolean allowed, int cooldownSeconds) {
+        return new KamisProperties(serviceKey, baseUrl, saleType, region, grade, freshnessDays, lookbackDays,
+                enabled, allowed, cooldownSeconds, timezone, connectTimeoutMs, readTimeoutMs);
     }
 
     public boolean usable() {
@@ -59,6 +74,10 @@ public record KamisProperties(
 
     public ZoneId zone() {
         return ZoneId.of(timezone);
+    }
+
+    public boolean manualCollectAllowed() {
+        return Boolean.TRUE.equals(manualCollectEnabled);
     }
 
     public String normalizedRegion() {

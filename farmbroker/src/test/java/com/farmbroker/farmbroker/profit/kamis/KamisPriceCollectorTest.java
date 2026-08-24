@@ -8,10 +8,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import com.farmbroker.farmbroker.profit.dto.KamisCollectResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,7 +35,7 @@ class KamisPriceCollectorTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 8, 13);
     private static final KamisProperties ENABLED_PROPERTIES =
             new KamisProperties("key", null, "02", null, "상품", 7, 14, true,
-                    "Asia/Seoul", 3000, 5000);
+                    true, 0, "Asia/Seoul", 3000, 5000);
 
     @Mock
     private KamisPriceClient client;
@@ -48,8 +53,9 @@ class KamisPriceCollectorTest {
         given(itemCodes.all()).willReturn(items(
                 Map.entry("상추", lettuceCode),
                 Map.entry("딸기", strawberryCode)));
-        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(Optional.of(lettucePrice));
-        given(client.fetchLatest(strawberryCode, TODAY)).willReturn(Optional.empty());
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        given(client.fetchLatest(strawberryCode, TODAY))
+                .willReturn(new KamisPriceClient.Result.NoSurvey());
         given(client.callInterval()).willReturn(Duration.ZERO);
 
         int updated = collector(ENABLED_PROPERTIES).collect(TODAY);
@@ -72,8 +78,8 @@ class KamisPriceCollectorTest {
         given(itemCodes.all()).willReturn(items(
                 Map.entry("상추", lettuceCode),
                 Map.entry("시금치", spinachCode)));
-        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(Optional.of(lettucePrice));
-        given(client.fetchLatest(spinachCode, TODAY)).willReturn(Optional.of(spinachPrice));
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        given(client.fetchLatest(spinachCode, TODAY)).willReturn(found(spinachPrice));
         given(client.callInterval()).willReturn(Duration.ZERO);
         willThrow(new IllegalStateException("unique constraint"))
                 .given(writer).upsert(
@@ -91,12 +97,130 @@ class KamisPriceCollectorTest {
     void skips_collection_when_properties_are_not_usable() {
         KamisProperties disabledProperties =
                 new KamisProperties("", null, "02", null, "상품", 7, 14, true,
-                        "Asia/Seoul", 3000, 5000);
+                        true, 0, "Asia/Seoul", 3000, 5000);
 
         int updated = collector(disabledProperties).collect(TODAY);
 
         assertThat(updated).isZero();
         verifyNoInteractions(client, itemCodes, writer);
+    }
+
+    // ── #129 리뷰 세 경로 ────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("외부 조회 실패는 조사 없음이 아니라 실패로 센다")
+    void query_failure_is_not_reported_as_missing() {
+        // KAMIS 가 죽어 있는 동안 모든 작물이 MISSING 으로 보고되면 장애가 정상으로 읽힌다.
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+        given(client.fetchLatest(lettuceCode, TODAY))
+                .willReturn(new KamisPriceClient.Result.QueryFailed("read timed out"));
+
+        KamisCollectResponse result = collector(ENABLED_PROPERTIES).collectWithReport(TODAY);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.missing()).isZero();
+        assertThat(result.items()).singleElement()
+                .extracting(KamisCollectResponse.Item::status).isEqualTo("QUERY_FAILED");
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    @DisplayName("저장 실패는 조회 실패와 다른 상태로 남긴다")
+    void save_failure_has_its_own_status() {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        willThrow(new IllegalStateException("unique constraint"))
+                .given(writer).upsert(
+                        eq("상추"), eq(lettucePrice), anyString(), anyString(), anyString(),
+                        any(LocalDateTime.class));
+
+        KamisCollectResponse result = collector(ENABLED_PROPERTIES).collectWithReport(TODAY);
+
+        assertThat(result.items()).singleElement()
+                .extracting(KamisCollectResponse.Item::status).isEqualTo("SAVE_FAILED");
+    }
+
+    @Test
+    @DisplayName("정기 배치는 수동 수집 간격에 걸리지 않는다")
+    void the_daily_batch_ignores_the_manual_cooldown() {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
+
+        collector.collectWithReport(TODAY, true);
+
+        assertThat(collector.collectWithReport(TODAY).updated()).isEqualTo(1);
+    }
+
+    // 쿨다운을 먼저 보면 도는 중에 들어온 요청이 COOLDOWN 으로 나가, 아직 실행 중인 작업을
+    // "조금 전에 다 받아왔다"로 잘못 알린다. 순서를 테스트로 고정한다(#129 리뷰).
+    @Test
+    @DisplayName("수집이 도는 중에 들어온 수동 요청은 쿨다운이 아니라 실행 중으로 답한다")
+    void a_request_during_a_running_collection_reports_already_running() throws Exception {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+
+        CountDownLatch collecting = new CountDownLatch(1);   // 수집이 외부 호출에 들어갔다
+        CountDownLatch release = new CountDownLatch(1);      // 두 번째 요청이 끝났으니 놓아 준다
+        given(client.fetchLatest(lettuceCode, TODAY)).willAnswer(invocation -> {
+            collecting.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return found(lettucePrice);
+        });
+
+        // 쿨다운을 넉넉히 둬야 "쿨다운이 먼저 걸리는" 잘못된 순서가 드러난다.
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
+        CompletableFuture<KamisCollectResponse> first =
+                CompletableFuture.supplyAsync(() -> collector.collectWithReport(TODAY, true));
+
+        assertThat(collecting.await(5, TimeUnit.SECONDS)).isTrue();
+        KamisCollectResponse second = collector.collectWithReport(TODAY, true);
+        release.countDown();
+
+        assertThat(second.skipped()).isTrue();
+        assertThat(second.skipReason()).isEqualTo(KamisCollectResponse.SKIP_ALREADY_RUNNING);
+        assertThat(first.get(5, TimeUnit.SECONDS).updated()).isEqualTo(1);
+        // 두 번째 요청은 외부를 부르지 않았다 — 첫 수집의 1회뿐이다.
+        verify(client).fetchLatest(lettuceCode, TODAY);
+    }
+
+    // 수집이 끝난 뒤에는 같은 요청이 쿨다운으로 걸려야 한다. 위 순서 변경이 쿨다운을
+    // 무력화하지 않았는지 함께 본다.
+    @Test
+    @DisplayName("수집이 끝난 뒤 들어온 수동 요청은 쿨다운으로 답한다")
+    void a_request_after_a_finished_collection_reports_cooldown() {
+        KamisItemCodes.ItemCode lettuceCode = new KamisItemCodes.ItemCode("200", "212");
+        KamisPriceClient.DailyPrice lettucePrice = new KamisPriceClient.DailyPrice(TODAY, 9500, 4);
+        given(itemCodes.all()).willReturn(items(Map.entry("상추", lettuceCode)));
+        given(client.fetchLatest(lettuceCode, TODAY)).willReturn(found(lettucePrice));
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(true, 600));
+
+        collector.collectWithReport(TODAY, true);
+        KamisCollectResponse second = collector.collectWithReport(TODAY, true);
+
+        assertThat(second.skipReason()).isEqualTo(KamisCollectResponse.SKIP_COOLDOWN);
+    }
+
+    @Test
+    @DisplayName("수동 수집을 꺼 두면 버튼으로는 외부를 부르지 못한다")
+    void manual_collection_can_be_switched_off() {
+        KamisPriceCollector collector = collector(ENABLED_PROPERTIES.withManualCollect(false, 600));
+
+        KamisCollectResponse result = collector.collectWithReport(TODAY, true);
+
+        assertThat(result.skipped()).isTrue();
+        assertThat(result.skipReason()).isEqualTo(KamisCollectResponse.SKIP_DISABLED);
+        verifyNoInteractions(client, itemCodes, writer);
+    }
+
+    private static KamisPriceClient.Result found(KamisPriceClient.DailyPrice price) {
+        return new KamisPriceClient.Result.Found(price);
     }
 
     private KamisPriceCollector collector(KamisProperties properties) {
