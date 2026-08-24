@@ -77,7 +77,18 @@ function validateForm(values: SignupFormValues) {
   return errors;
 }
 
-export function useSignupForm(onSubmit: (values: SignupInput) => Promise<void>) {
+interface SignupFormOptions {
+  // 서버도 가입 시점에 다시 확인하지만, 여기서 먼저 막아야 사용자가 이유를 바로 알 수 있습니다.
+  //
+  // 불리언이 아니라 함수로 받습니다. 인증 여부는 이 훅이 소유한 이메일 값에 달려 있는데,
+  // 값을 받아 계산한 불리언을 넘기려면 호출부가 values를 먼저 알아야 해 선언 순서가 순환합니다.
+  isEmailVerified: (email: string) => boolean;
+}
+
+export function useSignupForm(
+  onSubmit: (values: SignupInput) => Promise<void>,
+  options: SignupFormOptions,
+) {
   const [values, setValues] = useState<SignupFormValues>(initialValues);
   const [errors, setErrors] = useState<SignupFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,6 +131,13 @@ export function useSignupForm(onSubmit: (values: SignupInput) => Promise<void>) 
     const nextErrors = validateForm(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+
+    // 인증을 안 했다고 제출 버튼을 계속 비활성화하면 왜 못 누르는지 알 수 없습니다.
+    // 누를 수는 있게 두고, 눌렀을 때 이유를 밝힙니다.
+    if (!options.isEmailVerified(values.email)) {
+      setSubmitError('이메일 인증을 완료해 주세요.');
+      return;
+    }
 
     setSubmitError(null);
     setIsSubmitting(true);

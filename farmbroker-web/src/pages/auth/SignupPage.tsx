@@ -1,4 +1,4 @@
-import { ArrowRight, Lock, Mail, UserRound } from 'lucide-react';
+import { ArrowRight, Lock, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/common/Button';
@@ -8,11 +8,14 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { APP_INFO } from '@/constants/appInfo';
 import { ROUTES } from '@/constants/routes';
+import { EmailVerificationField } from '@/pages/auth/components/EmailVerificationField';
+import { useEmailVerification } from '@/pages/auth/hooks/useEmailVerification';
 import { useSignupForm } from '@/pages/auth/hooks/useSignupForm';
 import { signup } from '@/services/authService';
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const verification = useEmailVerification();
   const {
     values,
     errors,
@@ -22,10 +25,14 @@ export function SignupPage() {
     handleTextChange,
     handleBlur,
     handleSubmit,
-  } = useSignupForm(async (input) => {
-    await signup(input);
-    navigate(ROUTES.login, { replace: true, state: { signupCompleted: true } });
-  });
+  } = useSignupForm(
+    async (input) => {
+      await signup(input);
+      navigate(ROUTES.login, { replace: true, state: { signupCompleted: true } });
+    },
+    // 인증 대상 이메일이 폼의 현재 이메일과 같을 때만 인증된 것으로 봅니다.
+    { isEmailVerified: verification.isVerifiedFor },
+  );
 
   return (
     <PageContainer className="pb-28 pt-10 sm:pt-14 lg:py-16" narrow>
@@ -62,18 +69,12 @@ export function SignupPage() {
               value={values.nickname}
             />
 
-            <Input
-              autoComplete="email"
-              errorMessage={errors.email}
-              icon={<Mail className="h-4 w-4" aria-hidden />}
-              label="이메일"
-              name="email"
-              onBlur={handleBlur}
-              onChange={handleTextChange}
-              placeholder="email@example.com"
-              required
-              type="email"
-              value={values.email}
+            <EmailVerificationField
+              email={values.email}
+              formError={errors.email}
+              onEmailBlur={handleBlur}
+              onEmailChange={handleTextChange}
+              verification={verification}
             />
 
             <div className="grid gap-5 sm:grid-cols-2">

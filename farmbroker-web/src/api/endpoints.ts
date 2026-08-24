@@ -3,6 +3,8 @@ export const ENDPOINTS = {
     signup: '/auth/signup',
     login: '/auth/login',
     logout: '/auth/logout',
+    sendEmailCode: '/auth/email/send-code',
+    verifyEmailCode: '/auth/email/verify-code',
   },
   users: {
     me: '/users/me',

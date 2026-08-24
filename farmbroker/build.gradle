@@ -22,6 +22,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	// 회원가입 이메일 인증번호 발송(JavaMailSender). Boot 4에서도 mail 스타터 이름은 그대로다.
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	// Boot 4에서 RestClient 자동설정(RestClient.Builder 빈)은 webmvc 스타터에 들어 있지 않다.
 	implementation 'org.springframework.boot:spring-boot-starter-restclient'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'

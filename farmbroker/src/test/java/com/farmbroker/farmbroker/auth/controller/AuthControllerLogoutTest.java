@@ -1,6 +1,7 @@
 package com.farmbroker.farmbroker.auth.controller;
 
 import com.farmbroker.farmbroker.auth.service.AuthService;
+import com.farmbroker.farmbroker.auth.service.EmailVerificationService;
 import com.farmbroker.farmbroker.security.AuthCookieProvider;
 import com.farmbroker.farmbroker.security.JwtAuthenticationFilter;
 import com.farmbroker.farmbroker.security.JwtTokenProvider;
@@ -50,6 +51,10 @@ class AuthControllerLogoutTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    // AuthController가 생성자로 주입받으므로 이 테스트에서 쓰지 않아도 빈이 있어야 컨텍스트가 뜬다.
+    @MockitoBean
+    private EmailVerificationService emailVerificationService;
 
     @Test
     @DisplayName("유효한 JWT로 로그아웃을 요청하면 200을 반환한다")
