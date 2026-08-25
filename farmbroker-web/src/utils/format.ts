@@ -6,12 +6,7 @@ const currencyFormatter = new Intl.NumberFormat('ko-KR', {
 
 const numberFormatter = new Intl.NumberFormat('ko-KR');
 
-const chatDateFormatter = new Intl.DateTimeFormat('ko-KR', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  weekday: 'long',
-});
+const KOREAN_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
 export function formatCurrency(value: number) {
   return currencyFormatter.format(value);
@@ -33,7 +28,13 @@ export function formatDate(value: string) {
 }
 
 export function formatChatDate(value: string) {
-  return chatDateFormatter.format(new Date(value));
+  const date = new Date(value);
+  return [
+    `${date.getFullYear()}년`,
+    `${date.getMonth() + 1}월`,
+    `${date.getDate()}일`,
+    `${KOREAN_WEEKDAYS[date.getDay()]}요일`,
+  ].join(' ');
 }
 
 export function formatChatTime(value: string) {
