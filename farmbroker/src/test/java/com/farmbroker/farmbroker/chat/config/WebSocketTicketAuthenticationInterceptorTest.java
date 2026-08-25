@@ -45,9 +45,34 @@ class WebSocketTicketAuthenticationInterceptorTest {
     }
 
     @Test
+    @DisplayName("유효한 티켓으로 STOMP 프레임을 보내도 사용자 Principal을 설정한다")
+    void authenticatesStompFrameWithValidTicket() {
+        given(jwtTokenProvider.validateWebSocketTicket("ticket-value")).willReturn(true);
+        given(jwtTokenProvider.getUserId("ticket-value")).willReturn(42L);
+        given(userRepository.existsByIdAndWithdrawnAtIsNull(42L)).willReturn(true);
+        StompHeaderAccessor accessor = connectionAccessor(
+                StompCommand.STOMP, "Bearer ticket-value");
+
+        interceptor.preSend(message(accessor), mock(MessageChannel.class));
+
+        assertThat(accessor.getUser()).isNotNull();
+        assertThat(accessor.getUser().getName()).isEqualTo("42");
+    }
+
+    @Test
     @DisplayName("티켓이 없는 STOMP CONNECT는 거절한다")
     void rejectsConnectWithoutTicket() {
         StompHeaderAccessor accessor = connectAccessor(null);
+
+        assertThatThrownBy(() -> interceptor.preSend(
+                message(accessor), mock(MessageChannel.class)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("티켓이 없는 STOMP 연결 프레임도 거절한다")
+    void rejectsStompFrameWithoutTicket() {
+        StompHeaderAccessor accessor = connectionAccessor(StompCommand.STOMP, null);
 
         assertThatThrownBy(() -> interceptor.preSend(
                 message(accessor), mock(MessageChannel.class)))
@@ -67,7 +92,12 @@ class WebSocketTicketAuthenticationInterceptorTest {
     }
 
     private static StompHeaderAccessor connectAccessor(String authorization) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        return connectionAccessor(StompCommand.CONNECT, authorization);
+    }
+
+    private static StompHeaderAccessor connectionAccessor(
+            StompCommand command, String authorization) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(command);
         if (authorization != null) {
             accessor.setNativeHeader("Authorization", authorization);
         }

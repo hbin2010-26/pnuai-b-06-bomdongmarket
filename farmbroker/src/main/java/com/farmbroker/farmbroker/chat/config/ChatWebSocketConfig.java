@@ -15,12 +15,15 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final AllowedOrigins allowedOrigins;
     private final WebSocketTicketAuthenticationInterceptor authenticationInterceptor;
+    private final AuthenticatedWebSocketMessageInterceptor authenticatedMessageInterceptor;
 
     public ChatWebSocketConfig(
             @Value("${cors.allowed-origins:" + AllowedOrigins.LOCAL_DEFAULT + "}") String allowedOrigins,
-            WebSocketTicketAuthenticationInterceptor authenticationInterceptor) {
+            WebSocketTicketAuthenticationInterceptor authenticationInterceptor,
+            AuthenticatedWebSocketMessageInterceptor authenticatedMessageInterceptor) {
         this.allowedOrigins = AllowedOrigins.parse(allowedOrigins);
         this.authenticationInterceptor = authenticationInterceptor;
+        this.authenticatedMessageInterceptor = authenticatedMessageInterceptor;
     }
 
     @Override
@@ -32,7 +35,7 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(authenticationInterceptor);
+        registration.interceptors(authenticationInterceptor, authenticatedMessageInterceptor);
     }
 
     // 핸드셰이크는 쿠키 없이 열되 허용 Origin은 REST의 CORS 목록을 그대로 쓴다.

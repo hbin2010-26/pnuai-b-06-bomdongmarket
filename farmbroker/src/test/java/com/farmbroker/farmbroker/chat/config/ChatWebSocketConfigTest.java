@@ -27,7 +27,8 @@ class ChatWebSocketConfigTest {
 
         new ChatWebSocketConfig(
                 "https://bomdong.vercel.app, http://localhost:5173",
-                mock(WebSocketTicketAuthenticationInterceptor.class))
+                mock(WebSocketTicketAuthenticationInterceptor.class),
+                mock(AuthenticatedWebSocketMessageInterceptor.class))
                 .registerStompEndpoints(registry);
 
         verify(registry).addEndpoint("/ws-chat");
@@ -40,11 +41,14 @@ class ChatWebSocketConfigTest {
         ChannelRegistration registration = mock(ChannelRegistration.class);
         WebSocketTicketAuthenticationInterceptor interceptor =
                 mock(WebSocketTicketAuthenticationInterceptor.class);
+        AuthenticatedWebSocketMessageInterceptor authenticatedMessageInterceptor =
+                mock(AuthenticatedWebSocketMessageInterceptor.class);
 
-        new ChatWebSocketConfig(AllowedOrigins.LOCAL_DEFAULT, interceptor)
+        new ChatWebSocketConfig(
+                AllowedOrigins.LOCAL_DEFAULT, interceptor, authenticatedMessageInterceptor)
                 .configureClientInboundChannel(registration);
 
-        verify(registration).interceptors(interceptor);
+        verify(registration).interceptors(interceptor, authenticatedMessageInterceptor);
     }
 
     @Test

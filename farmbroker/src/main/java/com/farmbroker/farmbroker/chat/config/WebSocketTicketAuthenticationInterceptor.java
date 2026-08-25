@@ -18,7 +18,7 @@ import org.springframework.util.StringUtils;
 import java.util.Collections;
 
 // WebSocket 핸드셰이크는 쿠키 없이 Render에 직접 연결하고, 실제 사용자 인증은
-// 첫 STOMP CONNECT 프레임의 짧은 수명 티켓으로 완료합니다.
+// 첫 STOMP CONNECT/STOMP 프레임의 짧은 수명 티켓으로 완료합니다.
 @Component
 @RequiredArgsConstructor
 public class WebSocketTicketAuthenticationInterceptor implements ChannelInterceptor {
@@ -30,7 +30,8 @@ public class WebSocketTicketAuthenticationInterceptor implements ChannelIntercep
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(
                 message, StompHeaderAccessor.class);
-        if (accessor == null || accessor.getCommand() != StompCommand.CONNECT) {
+        StompCommand command = accessor == null ? null : accessor.getCommand();
+        if (command != StompCommand.CONNECT && command != StompCommand.STOMP) {
             return message;
         }
 
