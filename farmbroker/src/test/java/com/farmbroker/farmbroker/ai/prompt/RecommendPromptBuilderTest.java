@@ -61,7 +61,18 @@ class RecommendPromptBuilderTest {
         assertThat(prompt).doesNotContain("상위 3개");
     }
 
-    // 요청이 있으면 계산 가능한 작물 안에서 순서를 다시 정하게 한다.
+    // 목적은 근거의 무게중심만 바꾼다 — 순서를 여는 스위치가 아니다(#138 리뷰).
+    @Test
+    void picking_only_a_purpose_does_not_open_the_order() {
+        String prompt = build(request(null, "수익형", null));
+
+        assertThat(prompt).contains("작물을 빼거나 더하거나 순서를 바꾸지 마세요");
+        assertThat(prompt).doesNotContain("순서를 정하세요");
+        // 그래도 목적에 따른 서술 지시는 들어간다.
+        assertThat(prompt).contains("배분수익과 비용 구조를 reason 의 앞부분에");
+    }
+
+    // 자유 요청이 있으면 계산 가능한 작물 안에서 순서를 다시 정하게 한다.
     // 순위 밖 작물을 고르면 금액이 비어 있는 카드가 나오므로 그것만은 막는다.
     @Test
     void a_free_form_request_lets_the_model_reorder_within_the_ranking() {
@@ -70,8 +81,9 @@ class RecommendPromptBuilderTest {
         assertThat(prompt).contains("[서버 계산 결과]에 있는 작물 중에서");
         assertThat(prompt).contains("순서를 정하세요");
         assertThat(prompt).contains("이 목록에 없는 작물은 고르지 마세요");
-        // 요청 때문에 앞으로 당긴 작물은 이유와 적자 여부를 함께 밝히게 한다.
-        assertThat(prompt).contains("적자라면 적자라는 사실도 같은 문장에서 밝히세요");
+        // 자리가 바뀐 작물은 방향에 관계없이 이유를 쓰게 한다 — 뒤로 밀린 작물도 설명이 필요하다.
+        assertThat(prompt).contains("앞으로 당긴 것이든 뒤로 미룬 것이든");
+        assertThat(prompt).contains("적자라면 적자라는 사실도");
     }
 
     // pickType 은 서버가 순위와 견줘 정한다. 모델에게 물으면 스스로 신고하게 하는 셈이라 믿을 수 없다.

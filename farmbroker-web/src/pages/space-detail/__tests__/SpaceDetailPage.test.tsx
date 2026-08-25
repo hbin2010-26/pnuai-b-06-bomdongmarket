@@ -215,7 +215,32 @@ describe('SpaceDetailPage', () => {
     expect(
       screen.getByRole('button', { name: '2순위 바질 (수익 3위)' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/요청 반영 · 수익 3위/)).toBeInTheDocument();
+    // 방향까지 보여 줘야 뒤로 밀린 작물이 올라온 것처럼 읽히지 않습니다.
+    expect(screen.getByText('수익 3위 → 2순위')).toBeInTheDocument();
+  });
+
+  // 실패를 알리지 않으면 입력 폼으로 조용히 돌아가, 다시 눌러도 달라지지 않는 실패에도
+  // 사용자가 같은 버튼을 계속 누르게 됩니다.
+  it('추천이 실패하면 그 이유를 화면에 보여준다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 3,
+      email: 'consumer@example.com',
+      nickname: '지역소비자',
+      roles: ['CONSUMER'],
+    });
+    vi.mocked(getRecommendation).mockRejectedValue(
+      new Error('수익을 계산할 수 있는 작물이 없어 추천할 수 없습니다.'),
+    );
+    renderWithProviders(<SpaceDetailPage />, { route: '/spaces/1' });
+
+    await user.click(await screen.findByRole('button', { name: /AI 추천 실행/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '수익을 계산할 수 있는 작물이 없어 추천할 수 없습니다.',
+    );
+    // 조건을 고쳐 다시 시도할 수 있도록 입력 폼은 그대로 둡니다.
+    expect(screen.getByLabelText('궁금한 작물')).toBeInTheDocument();
   });
 
   // 조건을 잘못 넣었을 때 페이지를 새로 고치는 것 말고는 되돌릴 길이 없었습니다(PR #130 리뷰).

@@ -38,6 +38,8 @@ const DATA_STATUS_LABEL: Record<string, string> = {
 interface ProfitEstimateCardProps {
   recommendation: AiRecommendation | null;
   status: AsyncStatus;
+  // 추천이 실패한 이유입니다. 다시 눌러도 달라지지 않는 실패가 있어 그대로 보여 줍니다.
+  errorMessage: string | null;
   onRun: (request: UserRequest) => void;
   // 결과 화면에서 조건을 다시 잡을 때 부모가 추천을 비웁니다.
   onReset: () => void;
@@ -74,6 +76,7 @@ function dataStatusNote(crop: ProfitCrop | null, estimate: ProfitEstimate) {
 export function ProfitEstimateCard({
   recommendation,
   status,
+  errorMessage,
   onRun,
   onReset,
   area,
@@ -160,6 +163,16 @@ export function ProfitEstimateCard({
 
       {!recommendation ? (
         <div className="mt-5">
+          {/* 실패를 알리지 않으면 입력 폼으로 조용히 돌아가 같은 버튼을 다시 누르게 됩니다.
+              "계산할 수 있는 작물이 없다"처럼 다시 눌러도 달라지지 않는 실패가 있습니다. */}
+          {status === 'error' ? (
+            <p
+              className="mb-4 rounded-app border border-feedback-danger/30 bg-feedback-danger/5 px-3 py-2 text-sm font-semibold text-feedback-danger"
+              role="alert"
+            >
+              {errorMessage ?? 'AI 추천을 실행하지 못했습니다.'}
+            </p>
+          ) : null}
           <p className="text-sm leading-6 text-slate-600">
             계산 가능한 작물 안에서만 추천하므로 어떤 작물이 나와도 금액을 함께 볼 수 있습니다.
             비워 두면 배분수익이 큰 순서 그대로 보여 주고, 아래를 채우면 그 요청에 맞는 순서로
@@ -258,6 +271,8 @@ export function ProfitEstimateCard({
                   type="button"
                 >
                   {index + 1}순위 {crop.cropName}
+                  {/* 요청 때문에 자리가 바뀐 경우에만, 어느 방향으로 바뀌었는지까지 보여 줍니다.
+                      순위만 보여 주면 뒤로 밀린 작물도 올라온 것처럼 읽힙니다. */}
                   {crop.pickType === 'PREFERENCE' && crop.profitRank ? (
                     <span className="ml-1 font-medium opacity-70">
                       (수익 {crop.profitRank}위)
@@ -373,7 +388,7 @@ export function ProfitEstimateCard({
           )}
 
           <div className="mt-5 grid gap-2">
-            {recommendedCrops.map((crop) => (
+            {recommendedCrops.map((crop, index) => (
               <div
                 key={crop.cropName}
                 className="rounded-app border border-leaf-100 px-3 py-2"
@@ -381,10 +396,12 @@ export function ProfitEstimateCard({
                 <p className="flex items-center gap-2 font-bold text-ink-900">
                   {crop.cropName}
                   {/* 요청 때문에 수익 순위와 다른 자리에 놓였다는 걸 밝힙니다 —
-                      안 밝히면 "요청에 맞는 작물"이 "가장 돈이 되는 작물"로 읽힙니다. */}
-                  {crop.pickType === 'PREFERENCE' ? (
+                      안 밝히면 "요청에 맞는 작물"이 "가장 돈이 되는 작물"로 읽힙니다.
+                      수익 순위를 모르면(계산 대상이 아니면) 아무 주장도 하지 않습니다 —
+                      요청이 없었는데 "요청 반영"이 붙으면 없던 요청을 있다고 말하는 셈입니다. */}
+                  {crop.pickType === 'PREFERENCE' && crop.profitRank ? (
                     <Badge tone="blue">
-                      요청 반영{crop.profitRank ? ` · 수익 ${crop.profitRank}위` : ''}
+                      수익 {crop.profitRank}위 → {index + 1}순위
                     </Badge>
                   ) : null}
                 </p>

@@ -107,20 +107,22 @@ public class RecommendPromptBuilder {
                     그 작물이 이 공간에 불리하더라도 작물을 바꾸지 말고, 왜 불리한지를 reason 에 쓰고
                     보완할 방법을 cautions 에 적으세요.""";
         }
-        // 2) 아무 요청도 없으면 계산기 순위가 곧 답이다. 모델이 고를 여지를 두지 않는다.
-        if (!hasUserRequest(request)) {
+        // 2) 순서를 다시 정할 이유가 없으면 계산기 순위가 곧 답이다. 모델이 고를 여지를 두지 않는다.
+        //    목적만 고른 경우도 여기다 — 목적은 근거의 무게중심만 바꾼다.
+        if (!reordersRanking(request)) {
             return """
                     [서버 계산 결과]에 있는 작물 전부에 대해 그 순서대로 reason 을 쓰세요.
                     작물을 빼거나 더하거나 순서를 바꾸지 마세요.""";
         }
-        // 3) 작물 지정 없이 목적·요청만 온 경우. 계산 가능한 작물 안에서 순서를 다시 정하게 한다.
+        // 3) 자유 요청이 온 경우. 계산 가능한 작물 안에서 순서를 다시 정하게 한다.
         return """
                 [서버 계산 결과]에 있는 작물 중에서 [사용자 요청]에 가장 잘 맞는 3개를 골라
                 순서를 정하세요. 이 목록에 없는 작물은 고르지 마세요 — 금액을 계산할 수 없는 작물입니다.
 
                 요청과 관계가 없으면 [서버 계산 결과]의 순서를 그대로 두세요.
-                요청 때문에 배분수익 순위보다 앞에 둔 작물은 왜 앞에 두었는지를 reason 첫 문장에 쓰고,
-                그 작물이 적자라면 적자라는 사실도 같은 문장에서 밝히세요.""";
+                요청 때문에 배분수익 순위와 다른 자리에 놓은 작물은 앞으로 당긴 것이든 뒤로 미룬 것이든
+                왜 그 자리인지를 reason 첫 문장에 쓰세요. 그 작물이 적자라면 적자라는 사실도
+                같은 문장에서 밝히세요.""";
     }
 
     // 목적에 따라 근거의 무게중심이 달라진다. 같은 작물이라도 수익형과 취미형에 할 말이 다르다.
@@ -144,6 +146,15 @@ public class RecommendPromptBuilder {
         return StringUtils.hasText(request.getPreferredCrop())
                 || StringUtils.hasText(request.getPurpose())
                 || StringUtils.hasText(request.getAdditionalInfo());
+    }
+
+    // 계산기 순위를 다시 정렬해도 되는 요청인지.
+    //
+    // 목적(수익형/취미형)은 근거 문장의 무게중심만 바꾼다 — 순서를 여는 스위치가 아니다.
+    // hasUserRequest 를 그대로 쓰면 화면에서 라디오 하나만 눌러도 순위가 풀려서, "수익형"을
+    // 고른 사용자에게 배분수익 1~3위가 아닌 구성이 나올 수 있었다(#138 리뷰).
+    public static boolean reordersRanking(AiRecommendRequest request) {
+        return !picksSingleCrop(request) && StringUtils.hasText(request.getAdditionalInfo());
     }
 
     // 작물을 지정했으면 모델이 고를 것이 없다 — 후보도 그 작물 하나로 줄인다.

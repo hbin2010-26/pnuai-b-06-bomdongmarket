@@ -89,10 +89,48 @@ class AiRecommendCandidateTest {
                 .containsExactly("딸기", "바질", "상추");
     }
 
+    // 목적은 화면에서 라디오 버튼 하나다. 그것만 눌러도 순위가 풀리면 "수익형"을 고른 사용자에게
+    // 배분수익 1~3위가 아닌 구성이 나온다(#138 리뷰).
+    @Test
+    @DisplayName("목적만 골라도 계산기 상위 3개 고정은 유지된다")
+    void picking_only_a_purpose_keeps_the_ranking_fixed() {
+        assertThat(candidateNames(request(null, "수익형", null)))
+                .containsExactly("딸기", "바질", "상추");
+        assertThat(candidateNames(request(null, "취미형", null)))
+                .containsExactly("딸기", "바질", "상추");
+    }
+
+    @Test
+    @DisplayName("자유 요청이 있을 때만 계산 가능한 작물 전부를 후보로 연다")
+    void only_a_free_form_request_widens_the_candidates() {
+        assertThat(candidateNames(request(null, null, "손이 덜 가는 작물이면 좋겠습니다.")))
+                .containsExactlyElementsOf(CALCULABLE);
+    }
+
     @Test
     @DisplayName("작물을 지정하면 그 작물 하나만 후보로 준다")
     void a_named_crop_is_the_only_candidate() {
         assertThat(candidateNames(request("상추", null, null))).containsExactly("상추");
+    }
+
+    // 응답 하한이 1이 된 뒤로는 계산 불가 작물을 지정하면 금액 없는 추천이 그대로 성공한다.
+    @Test
+    @DisplayName("계산할 수 없는 작물을 지정하면 거절한다")
+    void a_named_crop_outside_the_ranking_is_rejected() {
+        assertThatThrownBy(() -> candidateNames(request("로메인", null, null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(caught -> ((BusinessException) caught).getErrorCode())
+                .isEqualTo(ErrorCode.AI_CROP_NOT_CALCULABLE);
+    }
+
+    // 이름이 아예 없으면 "지정 작물 하나만 답하라"는 프롬프트와 후보 목록이 어긋난다.
+    @Test
+    @DisplayName("백과사전에 없는 작물명은 거절한다")
+    void an_unknown_crop_name_is_rejected() {
+        assertThatThrownBy(() -> candidateNames(request("없는작물", null, null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(caught -> ((BusinessException) caught).getErrorCode())
+                .isEqualTo(ErrorCode.CROP_NOT_FOUND);
     }
 
     // 모자란 자리를 계산 불가 작물로 채우면 이 제한이 그대로 깨진다(#138 리뷰).
