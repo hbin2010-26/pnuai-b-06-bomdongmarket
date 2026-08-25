@@ -122,6 +122,7 @@ public class AiRecommendService {
                 .model(geminiClient.getModel())
                 .build();
 
+        Map<String, Integer> profitRanks = profitRanks(estimateByCropName);
         int order = 0;
         for (GeminiRecommendOutput.CropItem item : items) {
             Crop crop = cropById.get(item.cropId());
@@ -129,9 +130,10 @@ public class AiRecommendService {
                     .crop(crop)
                     .cropName(crop.getName())
                     .reason(item.reason().trim())
-                    .displayOrder(order++)
-                    .pickType(pickType(item, estimateByCropName.containsKey(crop.getName())))
+                    .displayOrder(order)
+                    .pickType(pickType(order, profitRanks.get(crop.getName())))
                     .build());
+            order++;
         }
         aiRecommendationRepository.save(recommendation);
 
@@ -150,11 +152,16 @@ public class AiRecommendService {
         return profitEstimateService.rank(inputs, null);
     }
 
-    // 작물을 지정했으면 그 작물 하나만 후보로 준다.
-    // 사용자 요청이 없으면 계산기 상위 3개만 후보로 준다 — 모델이 고를 여지를 없애 결과를 고정한다.
-    // 요청이 있거나 계산 가능한 작물이 2개도 안 되면 백과사전 전체를 후보로 준다.
-    private List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
-                                         AiRecommendRequest request) {
+    // 후보는 언제나 "계산 가능한 작물"(= 순위에 오른 작물)로 제한한다. 그래야 추천된 작물에
+    // 금액이 반드시 붙는다. 전에는 요청이 있으면 백과사전 전체를 줘서 금액 없는 카드가 나왔다.
+    //
+    // 작물을 지정했으면 그 하나만, 요청이 없으면 상위 3개만 준다 — 모델이 고를 여지를 없애
+    // 결과를 고정한다. 요청이 있으면 계산 가능한 작물 전부를 주고 그 안에서 순서를 정하게 한다.
+    // 계산 가능한 작물이 2개도 안 되면 응답 검증(2~3개)을 통과할 수 없어 백과사전 전체로 연다.
+    // 후보 결정과 자리 판정은 추천 품질을 좌우하는데 서비스 전체를 띄우지 않고도 확인할 수 있어야 해서
+    // 패키지 범위로 둔다(AiRecommendCandidateTest).
+    List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
+                                 AiRecommendRequest request) {
         Map<String, Crop> cropByName = crops.stream()
                 .collect(Collectors.toMap(Crop::getName, Function.identity(), (first, second) -> first));
 
@@ -167,27 +174,35 @@ public class AiRecommendService {
             }
         }
 
-        if (RecommendPromptBuilder.hasUserRequest(request)) {
-            return crops;
-        }
-        List<Crop> top = ranking.stream()
+        List<Crop> calculable = ranking.stream()
                 .map(estimate -> cropByName.get(estimate.cropName()))
                 .filter(Objects::nonNull)
-                .limit(RECOMMEND_COUNT)
                 .toList();
-        return top.size() >= 2 ? top : crops;
+        if (calculable.size() < 2) {
+            return crops;
+        }
+        return RecommendPromptBuilder.hasUserRequest(request)
+                ? calculable
+                : calculable.stream().limit(RECOMMEND_COUNT).toList();
     }
 
-    // 모델이 보낸 pickType 을 그대로 믿지 않는다. 값이 없거나 오타면 계산기 순위에 있는지로 정한다 —
-    // 순위 밖 작물에 PROFIT 이 붙으면 화면이 계산기가 고른 것처럼 보여 준다.
-    private String pickType(GeminiRecommendOutput.CropItem item, boolean inRanking) {
-        if (RecommendPromptBuilder.PICK_PREFERENCE.equals(item.pickType())) {
-            return RecommendPromptBuilder.PICK_PREFERENCE;
+    // pickType 은 모델이 보낸 값을 쓰지 않고 서버가 위치로 판정한다.
+    // 배분수익 순위와 같은 자리면 PROFIT, 요청 때문에 자리가 바뀌었으면 PREFERENCE 다.
+    // 모델에게 물으면 자기가 왜 그 순서로 놨는지를 스스로 신고해야 하는데, 그걸 믿을 근거가 없다.
+    String pickType(int displayOrder, Integer profitRank) {
+        return profitRank != null && profitRank == displayOrder + 1
+                ? RecommendPromptBuilder.PICK_PROFIT
+                : RecommendPromptBuilder.PICK_PREFERENCE;
+    }
+
+    // 배분수익 순위(1부터). 계산할 수 없는 작물이면 없다.
+    private static Map<String, Integer> profitRanks(Map<String, ProfitEstimate> estimateByCropName) {
+        Map<String, Integer> ranks = new LinkedHashMap<>();
+        int rank = 1;
+        for (String cropName : estimateByCropName.keySet()) {
+            ranks.put(cropName, rank++);
         }
-        if (RecommendPromptBuilder.PICK_PROFIT.equals(item.pickType()) && inRanking) {
-            return RecommendPromptBuilder.PICK_PROFIT;
-        }
-        return inRanking ? RecommendPromptBuilder.PICK_PROFIT : RecommendPromptBuilder.PICK_PREFERENCE;
+        return ranks;
     }
 
     // 모델이 순서를 바꾸거나 하나를 빠뜨려도 화면에는 계산기 순위가 그대로 보이게 맞춘다.
@@ -207,9 +222,7 @@ public class AiRecommendService {
                 reason = serverReason(estimateByCropName.get(crop.getName()));
                 log.warn("[AI 추천] 모델이 {} 의 근거를 빠뜨려 계산 결과로 대체했습니다.", crop.getName());
             }
-            // 요청이 없을 때만 오는 경로다 — 전부 계산기 순위에서 왔다.
-            aligned.add(new GeminiRecommendOutput.CropItem(
-                    crop.getId(), RecommendPromptBuilder.PICK_PROFIT, reason));
+            aligned.add(new GeminiRecommendOutput.CropItem(crop.getId(), reason));
         }
         return aligned;
     }
@@ -331,6 +344,7 @@ public class AiRecommendService {
     // 예전에는 대표 작물 하나만 계산해, 화면 상단에 로메인이 뜨는데 수익은 상추 기준인 일이 있었다(#98).
     private AiRecommendResponse toResponse(AiRecommendation recommendation, SpaceSummary space,
                                            Map<String, ProfitEstimate> estimateByCropName) {
+        Map<String, Integer> profitRanks = profitRanks(estimateByCropName);
         List<AiRecommendResponse.RecommendedCropItem> items = recommendation.getRecommendedCrops().stream()
                 .map(rc -> new AiRecommendResponse.RecommendedCropItem(
                         rc.getCropName(),
@@ -338,6 +352,9 @@ public class AiRecommendService {
                         rc.getReason(),
                         // 이 열이 생기기 전에 저장된 추천은 값이 없다 — 계산기 순위로 읽는다.
                         rc.getPickType() != null ? rc.getPickType() : RecommendPromptBuilder.PICK_PROFIT,
+                        // 요청 때문에 순서가 바뀌었을 때 화면이 "수익 N위"를 함께 보여줄 수 있어야
+                        // 사용자가 무엇 때문에 이 순서인지 안다.
+                        profitRanks.get(rc.getCropName()),
                         expectedYieldKg(rc.getCrop(), space.getArea()),
                         rc.getCrop() != null ? rc.getCrop().getAvgPricePerKg() : null,
                         toEstimateResponse(estimateByCropName.get(rc.getCropName()))

@@ -95,6 +95,7 @@ function recommendation(): AiRecommendation {
         cropId: 1,
         cropName: '상추',
         pickType: 'PROFIT' as const,
+        profitRank: 1,
         reason: '공간 조건에 적합합니다.',
         expectedYieldKg: 10,
         avgPricePerKg: 1000,
@@ -103,8 +104,9 @@ function recommendation(): AiRecommendation {
       {
         cropId: 2,
         cropName: '바질',
-        // 계산기 순위 밖에서 취향으로 고른 한 칸입니다(#98).
+        // 요청 때문에 수익 순위(3위)보다 앞자리에 놓인 경우입니다.
         pickType: 'PREFERENCE' as const,
+        profitRank: 3,
         reason: '단가가 높습니다.',
         expectedYieldKg: 5,
         avgPricePerKg: 20000,
@@ -193,8 +195,8 @@ describe('SpaceDetailPage', () => {
     });
   });
 
-  // 계산기 순위와 취향 추천이 섞여 보이면 어느 쪽이 수익 근거인지 알 수 없습니다(#98).
-  it('취향으로 고른 작물은 순위 번호 대신 취향 추천으로 표시한다', async () => {
+  // 요청 때문에 순서가 바뀐 자리를 밝히지 않으면, 요청에 맞는 작물이 가장 돈이 되는 작물로 읽힙니다.
+  it('요청으로 순서가 바뀐 작물은 수익 순위를 함께 보여준다', async () => {
     const user = userEvent.setup();
     saveAuthSession({
       userId: 3,
@@ -207,8 +209,13 @@ describe('SpaceDetailPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /AI 추천 실행/i }));
 
+    // 수익 1위가 그대로 1순위면 순위 번호만 붙습니다.
     expect(await screen.findByRole('button', { name: '1순위 상추' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '취향 추천 바질' })).toBeInTheDocument();
+    // 수익 3위가 2순위로 올라왔으므로 원래 순위를 함께 밝힙니다.
+    expect(
+      screen.getByRole('button', { name: '2순위 바질 (수익 3위)' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/요청 반영 · 수익 3위/)).toBeInTheDocument();
   });
 
   // 조건을 잘못 넣었을 때 페이지를 새로 고치는 것 말고는 되돌릴 길이 없었습니다(PR #130 리뷰).
@@ -268,9 +275,9 @@ describe('SpaceDetailPage', () => {
     expect(first).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('₩1,000,000')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '취향 추천 바질' }));
+    await user.click(screen.getByRole('button', { name: '2순위 바질 (수익 3위)' }));
 
-    expect(screen.getByRole('button', { name: '취향 추천 바질' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '2순위 바질 (수익 3위)' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );

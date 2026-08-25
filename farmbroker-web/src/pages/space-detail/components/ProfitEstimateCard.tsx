@@ -161,9 +161,9 @@ export function ProfitEstimateCard({
       {!recommendation ? (
         <div className="mt-5">
           <p className="text-sm leading-6 text-slate-600">
-            작물의 선택과 순서는 서버 수익 계산기가 정하고, AI는 각 작물이 이 공간에 왜 맞는지
-            근거를 씁니다. 아래를 채우면 계산기 순위는 그대로 두고 요청에 맞는 작물 한 개를
-            취향 추천으로 덧붙입니다. 작물을 고르면 그 작물만 설명합니다.
+            계산 가능한 작물 안에서만 추천하므로 어떤 작물이 나와도 금액을 함께 볼 수 있습니다.
+            비워 두면 배분수익이 큰 순서 그대로 보여 주고, 아래를 채우면 그 요청에 맞는 순서로
+            다시 정렬합니다. 작물을 고르면 그 작물만 설명합니다.
           </p>
 
           <div className="mt-5 grid gap-3">
@@ -257,9 +257,12 @@ export function ProfitEstimateCard({
                   onClick={() => handlePickOtherCrop(crop.cropName)}
                   type="button"
                 >
-                  {crop.pickType === 'PREFERENCE'
-                    ? `취향 추천 ${crop.cropName}`
-                    : `${index + 1}순위 ${crop.cropName}`}
+                  {index + 1}순위 {crop.cropName}
+                  {crop.pickType === 'PREFERENCE' && crop.profitRank ? (
+                    <span className="ml-1 font-medium opacity-70">
+                      (수익 {crop.profitRank}위)
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -377,8 +380,12 @@ export function ProfitEstimateCard({
               >
                 <p className="flex items-center gap-2 font-bold text-ink-900">
                   {crop.cropName}
+                  {/* 요청 때문에 수익 순위와 다른 자리에 놓였다는 걸 밝힙니다 —
+                      안 밝히면 "요청에 맞는 작물"이 "가장 돈이 되는 작물"로 읽힙니다. */}
                   {crop.pickType === 'PREFERENCE' ? (
-                    <Badge tone="blue">취향 추천</Badge>
+                    <Badge tone="blue">
+                      요청 반영{crop.profitRank ? ` · 수익 ${crop.profitRank}위` : ''}
+                    </Badge>
                   ) : null}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{crop.reason}</p>
