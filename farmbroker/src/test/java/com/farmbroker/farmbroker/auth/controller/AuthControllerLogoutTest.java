@@ -1,5 +1,6 @@
 package com.farmbroker.farmbroker.auth.controller;
 
+import com.farmbroker.farmbroker.auth.dto.WebSocketTicketResponse;
 import com.farmbroker.farmbroker.auth.service.AuthService;
 import com.farmbroker.farmbroker.auth.service.EmailVerificationService;
 import com.farmbroker.farmbroker.security.AuthCookieProvider;
@@ -17,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.BDDMockito.given;
 
@@ -89,6 +91,28 @@ class AuthControllerLogoutTest {
     void logout_withInvalidToken_returns401() throws Exception {
         mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer invalid.jwt.token"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("유효한 로그인 세션으로 WebSocket 단기 티켓을 발급한다")
+    void websocketTicket_withValidToken_returnsTicket() throws Exception {
+        String token = jwtTokenProvider.generateToken(1L);
+        given(userRepository.existsByIdAndWithdrawnAtIsNull(1L)).willReturn(true);
+        given(authService.issueWebSocketTicket(1L))
+                .willReturn(new WebSocketTicketResponse("ws-ticket", 60));
+
+        mockMvc.perform(post("/auth/ws-ticket")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ticket").value("ws-ticket"))
+                .andExpect(jsonPath("$.data.expiresInSeconds").value(60));
+    }
+
+    @Test
+    @DisplayName("로그인 세션 없이 WebSocket 티켓을 요청하면 401을 반환한다")
+    void websocketTicket_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/auth/ws-ticket"))
                 .andExpect(status().isUnauthorized());
     }
 }

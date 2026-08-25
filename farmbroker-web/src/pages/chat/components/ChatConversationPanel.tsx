@@ -28,6 +28,7 @@ import {
 } from '@/services/fileService';
 import type { ChatMessage, Conversation } from '@/types/api';
 import type { AsyncStatus } from '@/types/common';
+import { formatChatDate, formatChatTime } from '@/utils/format';
 
 interface ChatConversationPanelProps {
   conversationId: number;
@@ -49,6 +50,11 @@ function appendUnique(previous: ChatMessage[], message: ChatMessage): ChatMessag
   return previous.some((item) => item.messageId === message.messageId)
     ? previous
     : [...previous, message];
+}
+
+function localDateKey(value: string): string {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
 // 대화 하나를 보여 주고 보내는 패널입니다.
@@ -286,30 +292,71 @@ export function ChatConversationPanel({
         {messages.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">먼저 인사를 건네 보세요.</p>
         ) : null}
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const mine = myUserId != null && message.senderId === myUserId;
+          const previous = messages[index - 1];
+          const startsNewDate =
+            previous === undefined ||
+            localDateKey(previous.createdAt) !== localDateKey(message.createdAt);
+          const dateLabel = startsNewDate ? formatChatDate(message.createdAt) : null;
           return (
-            <div
-              className={mine ? 'flex justify-end' : 'flex justify-start'}
-              key={message.messageId}
-            >
+            <div className="space-y-2" key={message.messageId}>
+              {dateLabel ? (
+                <div
+                  aria-label={dateLabel}
+                  className="flex items-center gap-3 py-2"
+                  role="separator"
+                >
+                  <span className="h-px flex-1 bg-line" aria-hidden />
+                  <time
+                    className="shrink-0 text-xs font-semibold text-content-subtle"
+                    dateTime={message.createdAt}
+                  >
+                    {dateLabel}
+                  </time>
+                  <span className="h-px flex-1 bg-line" aria-hidden />
+                </div>
+              ) : null}
               <div
                 className={[
-                  'max-w-[75%] overflow-hidden rounded-app',
-                  mine ? 'bg-leaf-700 text-white' : 'bg-leaf-50 text-ink-900',
+                  'flex w-full items-end gap-1.5',
+                  mine ? 'justify-end' : 'justify-start',
                 ].join(' ')}
               >
-                {message.type === 'IMAGE' ? (
-                  <RemoteImage
-                    alt="보낸 사진"
-                    className="max-h-60 w-full object-cover"
-                    src={imageUrl(message.messageId)}
-                  />
+                {mine ? (
+                  <time
+                    className="shrink-0 pb-0.5 text-xs text-content-subtle"
+                    dateTime={message.createdAt}
+                  >
+                    {formatChatTime(message.createdAt)}
+                  </time>
                 ) : null}
-                {message.text ? (
-                  <p className="whitespace-pre-wrap break-words px-3 py-2 text-sm">
-                    {message.text}
-                  </p>
+                <div
+                  className={[
+                    'max-w-[75%] overflow-hidden rounded-app',
+                    mine ? 'bg-leaf-700 text-white' : 'bg-leaf-50 text-ink-900',
+                  ].join(' ')}
+                >
+                  {message.type === 'IMAGE' ? (
+                    <RemoteImage
+                      alt="보낸 사진"
+                      className="max-h-60 w-full object-cover"
+                      src={imageUrl(message.messageId)}
+                    />
+                  ) : null}
+                  {message.text ? (
+                    <p className="whitespace-pre-wrap break-words px-3 py-2 text-sm">
+                      {message.text}
+                    </p>
+                  ) : null}
+                </div>
+                {!mine ? (
+                  <time
+                    className="shrink-0 pb-0.5 text-xs text-content-subtle"
+                    dateTime={message.createdAt}
+                  >
+                    {formatChatTime(message.createdAt)}
+                  </time>
                 ) : null}
               </div>
             </div>

@@ -55,6 +55,8 @@ file:
 jwt:
   secret: "${JWT_SECRET}"
   expiration: "${JWT_EXPIRATION:86400000}"
+  # STOMP CONNECT에만 쓰는 단기 티켓. 연결 후 만료돼도 열린 WebSocket은 유지된다.
+  websocket-ticket-expiration: "${JWT_WEBSOCKET_TICKET_EXPIRATION:60000}"
   cookie:
     # Access Token을 담는 httpOnly 쿠키 속성. dev(http)는 secure=false, prod(https)는 secure=true로 토글.
     name: "${JWT_COOKIE_NAME:accessToken}"

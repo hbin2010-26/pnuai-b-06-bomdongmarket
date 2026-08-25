@@ -4,6 +4,7 @@ import com.farmbroker.farmbroker.auth.dto.LoginRequest;
 import com.farmbroker.farmbroker.auth.dto.LoginResponse;
 import com.farmbroker.farmbroker.auth.dto.SignupRequest;
 import com.farmbroker.farmbroker.auth.dto.SignupResponse;
+import com.farmbroker.farmbroker.auth.dto.WebSocketTicketResponse;
 import com.farmbroker.farmbroker.common.exception.BusinessException;
 import com.farmbroker.farmbroker.common.exception.ErrorCode;
 import com.farmbroker.farmbroker.security.JwtTokenProvider;
@@ -70,6 +71,12 @@ public class AuthService {
         String accessToken = jwtTokenProvider.generateToken(user.getId());
 
         return new LoginResult(accessToken, LoginResponse.of(user));
+    }
+
+    public WebSocketTicketResponse issueWebSocketTicket(Long userId) {
+        return new WebSocketTicketResponse(
+                jwtTokenProvider.generateWebSocketTicket(userId),
+                jwtTokenProvider.getWebSocketTicketExpiresInSeconds());
     }
 
     // 로그아웃 — 현재는 Access Token만 쓰는 stateless 구조라 서버가 보관하는 세션/토큰이 없다.

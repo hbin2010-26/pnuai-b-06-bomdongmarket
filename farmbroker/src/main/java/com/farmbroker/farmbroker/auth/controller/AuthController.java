@@ -7,6 +7,7 @@ import com.farmbroker.farmbroker.auth.dto.LoginRequest;
 import com.farmbroker.farmbroker.auth.dto.LoginResponse;
 import com.farmbroker.farmbroker.auth.dto.SignupRequest;
 import com.farmbroker.farmbroker.auth.dto.SignupResponse;
+import com.farmbroker.farmbroker.auth.dto.WebSocketTicketResponse;
 import com.farmbroker.farmbroker.auth.service.AuthService;
 import com.farmbroker.farmbroker.auth.service.EmailVerificationService;
 import com.farmbroker.farmbroker.common.response.ApiResponse;
@@ -73,6 +74,16 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE,
                 authCookieProvider.createAccessTokenCookie(result.accessToken()).toString());
         return ApiResponse.success("로그인에 성공했습니다.", result.body());
+    }
+
+    // POST /api/auth/ws-ticket — 인증된 REST 세션으로 Render 직접 WebSocket 연결용 단기 티켓을 받는다.
+    @Operation(summary = "WebSocket 연결 티켓 발급", description = "STOMP CONNECT에서만 쓸 수 있는 단기 티켓을 발급한다.")
+    @PostMapping("/ws-ticket")
+    public ApiResponse<WebSocketTicketResponse> issueWebSocketTicket(
+            @AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(
+                "WebSocket 연결 티켓을 발급했습니다.",
+                authService.issueWebSocketTicket(userId));
     }
 
     // POST /api/auth/logout — 인증 필요 (SecurityConfig의 anyRequest().authenticated()로 보호)

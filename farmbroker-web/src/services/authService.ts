@@ -10,6 +10,7 @@ import type {
   LoginResult,
   SignupInput,
   User,
+  WebSocketTicketResult,
 } from '@/types/api';
 
 // 목 사용자는 공간을 등록해 본 소비자 — 여러 역할을 동시에 가진 상태를 기본값으로 둡니다.
@@ -43,6 +44,19 @@ export async function logout(): Promise<void> {
   }
 
   await apiRequest<void>(ENDPOINTS.auth.logout, { method: 'POST' });
+}
+
+export async function getWebSocketTicket(): Promise<WebSocketTicketResult> {
+  if (USE_MOCKS) {
+    await mockDelay();
+    return { ticket: 'mock-websocket-ticket', expiresInSeconds: 60 };
+  }
+
+  const response = await apiRequest<WebSocketTicketResult>(
+    ENDPOINTS.auth.websocketTicket,
+    { method: 'POST' },
+  );
+  return response.data;
 }
 
 // 목 환경에서 인증 성공 경로를 재현하기 위한 고정 인증번호입니다. 테스트가 이 값을 가져다 씁니다.

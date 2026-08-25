@@ -3,6 +3,7 @@ package com.farmbroker.farmbroker.chat.config;
 import com.farmbroker.farmbroker.common.config.AllowedOrigins;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -13,10 +14,16 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final AllowedOrigins allowedOrigins;
+    private final WebSocketTicketAuthenticationInterceptor authenticationInterceptor;
+    private final AuthenticatedWebSocketMessageInterceptor authenticatedMessageInterceptor;
 
     public ChatWebSocketConfig(
-            @Value("${cors.allowed-origins:" + AllowedOrigins.LOCAL_DEFAULT + "}") String allowedOrigins) {
+            @Value("${cors.allowed-origins:" + AllowedOrigins.LOCAL_DEFAULT + "}") String allowedOrigins,
+            WebSocketTicketAuthenticationInterceptor authenticationInterceptor,
+            AuthenticatedWebSocketMessageInterceptor authenticatedMessageInterceptor) {
         this.allowedOrigins = AllowedOrigins.parse(allowedOrigins);
+        this.authenticationInterceptor = authenticationInterceptor;
+        this.authenticatedMessageInterceptor = authenticatedMessageInterceptor;
     }
 
     @Override
@@ -26,8 +33,13 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setUserDestinationPrefix("/user");
     }
 
-    // 허용 Origin 은 REST 의 CORS 와 같은 목록(cors.allowed-origins)을 쓴다.
-    // 여기에 주소를 따로 박으면 배포 환경에서 핸드셰이크만 403 으로 막힌다.
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(authenticationInterceptor, authenticatedMessageInterceptor);
+    }
+
+    // 핸드셰이크는 쿠키 없이 열되 허용 Origin은 REST의 CORS 목록을 그대로 쓴다.
+    // 실제 사용자 인증은 첫 STOMP CONNECT 프레임에서 단기 티켓으로 수행한다.
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws-chat")
