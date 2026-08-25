@@ -48,6 +48,18 @@ describe('ChatConversationPanel', () => {
     expect(screen.getByText('내일 수확분으로 보내드릴 수 있어요.')).toBeInTheDocument();
   });
 
+  it('날짜 구분선은 하루에 한 번, 전송 시간은 메시지마다 표시한다', async () => {
+    renderWithProviders(<ChatConversationPanel conversationId={1} myUserId={1} />);
+
+    await screen.findByText('상추 아직 남아 있나요?');
+
+    expect(
+      screen.getByRole('separator', { name: '2026년 8월 16일 일요일' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('오전 9:18')).toHaveLength(1);
+    expect(screen.getAllByText('오전 9:20')).toHaveLength(1);
+  });
+
   it('메시지를 보내면 목록 끝에 붙는다', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ChatConversationPanel conversationId={1} myUserId={1} />);
@@ -149,6 +161,9 @@ describe('ChatConversationPanel', () => {
     );
 
     expect(await screen.findByText('지금 막 수확했어요.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('separator', { name: '2026년 8월 17일 월요일' }),
+    ).toBeInTheDocument();
   });
 
   // 서버는 보낸 사람에게도 MESSAGE_CREATED 를 준다. 소켓 이벤트가 전송 API 응답보다
