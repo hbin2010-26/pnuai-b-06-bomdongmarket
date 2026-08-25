@@ -13,12 +13,6 @@ const chatDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   weekday: 'long',
 });
 
-const chatTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true,
-});
-
 export function formatCurrency(value: number) {
   return currencyFormatter.format(value);
 }
@@ -43,5 +37,11 @@ export function formatChatDate(value: string) {
 }
 
 export function formatChatTime(value: string) {
-  return chatTimeFormatter.format(new Date(value));
+  const date = new Date(value);
+  const hours = date.getHours();
+  const period = hours < 12 ? '오전' : '오후';
+  const displayHours = hours % 12 || 12;
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${period} ${displayHours}:${minutes}`;
 }
