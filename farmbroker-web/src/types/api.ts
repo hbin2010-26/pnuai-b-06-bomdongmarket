@@ -62,6 +62,11 @@ export interface LoginResult {
   user: User;
 }
 
+export interface WebSocketTicketResult {
+  ticket: string;
+  expiresInSeconds: number;
+}
+
 export interface SignupInput extends LoginInput {
   nickname: string;
 }

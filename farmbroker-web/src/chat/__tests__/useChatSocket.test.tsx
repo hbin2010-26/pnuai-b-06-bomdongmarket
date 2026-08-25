@@ -7,16 +7,35 @@ import type { Conversation, ConversationList } from '@/types/api';
 const chatServiceMocks = vi.hoisted(() => ({
   getConversations: vi.fn(),
 }));
+const authServiceMocks = vi.hoisted(() => ({
+  getWebSocketTicket: vi.fn(),
+}));
+const stompMocks = vi.hoisted(() => ({
+  instances: [] as Array<{
+    beforeConnect?: () => Promise<void>;
+    brokerURL?: string;
+    connectHeaders: Record<string, string>;
+  }>,
+}));
 
 vi.mock('@/services/chatService', () => chatServiceMocks);
+vi.mock('@/services/authService', () => authServiceMocks);
 
 vi.mock('@stomp/stompjs', () => ({
   // 훅이 재연결 간격을 늘리는 데 쓰는 값도 함께 내보내야 한다(없으면 undefined 접근으로 터진다).
   ReconnectionTimeMode: { LINEAR: 0, EXPONENTIAL: 1 },
   Client: class {
-    activate = vi.fn();
+    connectHeaders: Record<string, string> = {};
+    beforeConnect?: () => Promise<void>;
+    brokerURL?: string;
+    activate = vi.fn(async () => this.beforeConnect?.());
     deactivate = vi.fn().mockResolvedValue(undefined);
     subscribe = vi.fn();
+
+    constructor(options: Record<string, unknown>) {
+      Object.assign(this, options);
+      stompMocks.instances.push(this);
+    }
   },
 }));
 
@@ -43,6 +62,52 @@ function listPage(conversations: Conversation[], hasNext: boolean, page = 0): Co
 describe('useChatSocket', () => {
   beforeEach(() => {
     chatServiceMocks.getConversations.mockReset();
+    authServiceMocks.getWebSocketTicket.mockReset();
+    authServiceMocks.getWebSocketTicket.mockResolvedValue({
+      ticket: 'ticket-1',
+      expiresInSeconds: 60,
+    });
+    stompMocks.instances.length = 0;
+  });
+
+  it('연결 직전에 WebSocket 티켓을 받아 STOMP CONNECT 헤더에 넣는다', async () => {
+    chatServiceMocks.getConversations.mockResolvedValue(listPage([], false));
+
+    renderHook(() => useChatSocket(true, 1, vi.fn()));
+
+    await waitFor(() => expect(authServiceMocks.getWebSocketTicket).toHaveBeenCalledTimes(1));
+    expect(stompMocks.instances[0]?.connectHeaders).toEqual({
+      Authorization: 'Bearer ticket-1',
+    });
+  });
+
+  it('재연결 직전에는 새 WebSocket 티켓으로 교체한다', async () => {
+    chatServiceMocks.getConversations.mockResolvedValue(listPage([], false));
+    authServiceMocks.getWebSocketTicket
+      .mockResolvedValueOnce({ ticket: 'ticket-1', expiresInSeconds: 60 })
+      .mockResolvedValueOnce({ ticket: 'ticket-2', expiresInSeconds: 60 });
+    renderHook(() => useChatSocket(true, 1, vi.fn()));
+
+    await waitFor(() => expect(authServiceMocks.getWebSocketTicket).toHaveBeenCalledTimes(1));
+    await act(async () => stompMocks.instances[0]?.beforeConnect?.());
+
+    expect(authServiceMocks.getWebSocketTicket).toHaveBeenCalledTimes(2);
+    expect(stompMocks.instances[0]?.connectHeaders).toEqual({
+      Authorization: 'Bearer ticket-2',
+    });
+  });
+
+  it('티켓 발급 실패 시 이전 티켓을 지워 재연결에서 재사용하지 않는다', async () => {
+    chatServiceMocks.getConversations.mockResolvedValue(listPage([], false));
+    authServiceMocks.getWebSocketTicket
+      .mockResolvedValueOnce({ ticket: 'ticket-1', expiresInSeconds: 60 })
+      .mockRejectedValueOnce(new Error('temporary failure'));
+    renderHook(() => useChatSocket(true, 1, vi.fn()));
+
+    await waitFor(() => expect(authServiceMocks.getWebSocketTicket).toHaveBeenCalledTimes(1));
+    await act(async () => stompMocks.instances[0]?.beforeConnect?.());
+
+    expect(stompMocks.instances[0]?.connectHeaders).toEqual({});
   });
 
   it('비활성화된 뒤 끝난 목록 요청은 상태를 덮어쓰지 않는다', async () => {

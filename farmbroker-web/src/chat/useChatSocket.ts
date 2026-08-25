@@ -2,6 +2,7 @@ import { Client, ReconnectionTimeMode, type IMessage } from '@stomp/stompjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { APP_INFO } from '@/constants/appInfo';
+import { getWebSocketTicket } from '@/services/authService';
 import { getConversations } from '@/services/chatService';
 import type { ChatMessage, Conversation } from '@/types/api';
 import type { AsyncStatus } from '@/types/common';
@@ -20,10 +21,8 @@ export interface ChatRealtimeEvent {
   unreadCount: number;
 }
 
-// 소켓 주소는 API 주소에서 끌어냅니다.
-// 프런트는 nginx(5173)가 서빙하고 API 는 8080/api 라, 화면 오리진으로 만들면
-// nginx 에 없는 경로로 붙어 연결이 되지 않습니다. STOMP 엔드포인트는 백엔드
-// 컨텍스트 경로 아래에 있어 최종 주소가 ws://host:8080/api/ws-chat 이 됩니다.
+// 운영에서는 Vercel HTTP rewrite가 WebSocket 연결을 유지하지 못하므로 VITE_WS_URL로
+// Render에 직접 연결합니다. 로컬은 API 주소에서 ws://.../api/ws-chat을 계산합니다.
 function resolveSocketUrl(): string {
   const configured = import.meta.env.VITE_WS_URL as string | undefined;
   if (configured) return configured;
@@ -168,7 +167,18 @@ export function useChatSocket(
 
     const client = new Client({
       brokerURL: resolveSocketUrl(),
-      // 인증은 handshake 의 JWT 쿠키로 이뤄집니다(SecurityConfig 가 /ws-chat 을 보호).
+      // beforeConnect는 최초 연결과 자동 재연결 직전에 매번 실행됩니다. 짧은 수명의
+      // 티켓을 그때마다 새로 받아 만료된 티켓으로 재연결하지 않게 합니다.
+      beforeConnect: async () => {
+        try {
+          const { ticket } = await getWebSocketTicket();
+          client.connectHeaders = { Authorization: `Bearer ${ticket}` };
+        } catch {
+          // beforeConnect가 reject되면 stompjs가 재연결을 예약하지 않습니다. 헤더를 비워
+          // 서버가 연결을 닫게 두면 기존 지수 backoff 경로로 다음 티켓 발급을 다시 시도합니다.
+          client.connectHeaders = {};
+        }
+      },
       reconnectDelay: RECONNECT_DELAY_MS,
       reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
       maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
@@ -189,7 +199,7 @@ export function useChatSocket(
     return () => {
       void client.deactivate();
     };
-    // userId 가 바뀌면 소켓도 새 계정 쿠키로 다시 붙어야 합니다.
+    // userId가 바뀌면 소켓도 새 계정 티켓으로 다시 붙어야 합니다.
   }, [applyEvent, enabled, refresh, userId]);
 
   const totalUnread = conversations.reduce((sum, item) => sum + item.unreadCount, 0);

@@ -20,16 +20,22 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
+    private static final String TOKEN_USE_CLAIM = "token_use";
+    private static final String WEBSOCKET_TOKEN_USE = "websocket";
+
     private final SecretKey signingKey;
     private final long expiration;
+    private final long websocketTicketExpiration;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration}") long expiration
+            @Value("${jwt.expiration}") long expiration,
+            @Value("${jwt.websocket-ticket-expiration:60000}") long websocketTicketExpiration
     ) {
         // jjwt 0.12.x: Keys.hmacShaKeyFor()로 SecretKey 생성
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
+        this.websocketTicketExpiration = websocketTicketExpiration;
     }
 
     // 토큰 생성 — subject: userId(String)
@@ -43,6 +49,23 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    // 브라우저가 Render WebSocket에 직접 연결할 때 STOMP CONNECT에서만 쓰는 단기 티켓입니다.
+    // token_use를 분리해 이 값이 일반 REST Bearer 토큰으로 재사용되지 않게 합니다.
+    public String generateWebSocketTicket(Long userId) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim(TOKEN_USE_CLAIM, WEBSOCKET_TOKEN_USE)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + websocketTicketExpiration))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    public int getWebSocketTicketExpiresInSeconds() {
+        return Math.toIntExact(websocketTicketExpiration / 1000);
+    }
+
     // 토큰에서 userId 추출
     public Long getUserId(String token) {
         return Long.parseLong(getClaims(token).getSubject());
@@ -51,8 +74,15 @@ public class JwtTokenProvider {
     // 토큰 유효성 검증 — 만료 · 위변조 · 형식 오류 모두 false 반환
     public boolean validateToken(String token) {
         try {
-            getClaims(token);
-            return true;
+            return getClaims(token).get(TOKEN_USE_CLAIM) == null;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean validateWebSocketTicket(String token) {
+        try {
+            return WEBSOCKET_TOKEN_USE.equals(getClaims(token).get(TOKEN_USE_CLAIM, String.class));
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

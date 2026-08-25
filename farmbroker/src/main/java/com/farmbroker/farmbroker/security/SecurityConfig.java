@@ -68,6 +68,9 @@ public class SecurityConfig {
                 // 인증 불필요 — 업로드된 공간 사진 조회. 목록/상세가 비로그인 허용이므로 이미지도 함께 연다.
                 // 업로드(POST /files)는 아래 anyRequest().authenticated()로 보호된다.
                 .requestMatchers(HttpMethod.GET, "/files/*").permitAll()
+                // Render WebSocket 핸드셰이크에는 Vercel 쿠키가 없으므로 HTTP 연결만 공개한다.
+                // 실제 사용자는 STOMP CONNECT의 단기 티켓으로 ChatWebSocketConfig에서 인증한다.
+                .requestMatchers(HttpMethod.GET, "/ws-chat").permitAll()
                 // swagger 경로 설정
                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 // 그 외 모든 요청은 인증 필요 (다른 팀원 도메인 API도 자동 보호됨)

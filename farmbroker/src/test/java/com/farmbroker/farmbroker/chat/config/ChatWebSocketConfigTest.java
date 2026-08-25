@@ -3,6 +3,7 @@ package com.farmbroker.farmbroker.chat.config;
 import com.farmbroker.farmbroker.common.config.AllowedOrigins;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.StompWebSocketEndpointRegistration;
 
@@ -24,11 +25,26 @@ class ChatWebSocketConfigTest {
         StompWebSocketEndpointRegistration registration = mock(StompWebSocketEndpointRegistration.class);
         when(registry.addEndpoint(anyString())).thenReturn(registration);
 
-        new ChatWebSocketConfig("https://bomdong.vercel.app, http://localhost:5173")
+        new ChatWebSocketConfig(
+                "https://bomdong.vercel.app, http://localhost:5173",
+                mock(WebSocketTicketAuthenticationInterceptor.class))
                 .registerStompEndpoints(registry);
 
         verify(registry).addEndpoint("/ws-chat");
         verify(registration).setAllowedOrigins("https://bomdong.vercel.app", "http://localhost:5173");
+    }
+
+    @Test
+    @DisplayName("클라이언트 인바운드 채널에 WebSocket 티켓 인증을 적용한다")
+    void registersTicketAuthenticationInterceptor() {
+        ChannelRegistration registration = mock(ChannelRegistration.class);
+        WebSocketTicketAuthenticationInterceptor interceptor =
+                mock(WebSocketTicketAuthenticationInterceptor.class);
+
+        new ChatWebSocketConfig(AllowedOrigins.LOCAL_DEFAULT, interceptor)
+                .configureClientInboundChannel(registration);
+
+        verify(registration).interceptors(interceptor);
     }
 
     @Test
