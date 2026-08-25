@@ -141,7 +141,8 @@ public class AiRecommendService {
     }
 
     // 저장된 공간 면적·월세 + 표준 설비 가정값으로 계산기를 돌린다.
-    // 면적이 없으면 계산할 수 없으므로 빈 순위를 돌려주고, 그때는 백과사전 후보로 추천한다.
+    // 면적이 없으면 아무 작물도 계산할 수 없다. 빈 순위를 돌려주면 resolveCandidates 가
+    // AI_NO_CALCULABLE_CROP 으로 걸러낸다 — 금액 없는 추천을 내놓지 않기 위해서다.
     private List<ProfitEstimate> rankCrops(SpaceSummary space) {
         if (space.getArea() == null || space.getArea().doubleValue() <= 0) {
             return List.of();
@@ -152,12 +153,14 @@ public class AiRecommendService {
         return profitEstimateService.rank(inputs, null);
     }
 
-    // 후보는 언제나 "계산 가능한 작물"(= 순위에 오른 작물)로 제한한다. 그래야 추천된 작물에
-    // 금액이 반드시 붙는다. 전에는 요청이 있으면 백과사전 전체를 줘서 금액 없는 카드가 나왔다.
+    // 후보는 "계산 가능한 작물"(= 순위에 오른 작물)로만 준다. 그래야 추천된 작물에 금액이
+    // 반드시 붙는다. 전에는 요청이 있으면 백과사전 전체를 줘서 금액 없는 카드가 나왔다.
+    //
+    // 계산 가능한 작물이 하나뿐이어도 그 하나만 준다 — 모자란 자리를 계산 불가 작물로 채우면
+    // 이 PR 이 보장하려는 것이 그대로 깨진다(#138 리뷰). 하나도 없으면 호출 전에 걸러낸다.
     //
     // 작물을 지정했으면 그 하나만, 요청이 없으면 상위 3개만 준다 — 모델이 고를 여지를 없애
     // 결과를 고정한다. 요청이 있으면 계산 가능한 작물 전부를 주고 그 안에서 순서를 정하게 한다.
-    // 계산 가능한 작물이 2개도 안 되면 응답 검증(2~3개)을 통과할 수 없어 백과사전 전체로 연다.
     // 후보 결정과 자리 판정은 추천 품질을 좌우하는데 서비스 전체를 띄우지 않고도 확인할 수 있어야 해서
     // 패키지 범위로 둔다(AiRecommendCandidateTest).
     List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
@@ -178,8 +181,9 @@ public class AiRecommendService {
                 .map(estimate -> cropByName.get(estimate.cropName()))
                 .filter(Objects::nonNull)
                 .toList();
-        if (calculable.size() < 2) {
-            return crops;
+        if (calculable.isEmpty()) {
+            // 금액 없는 추천을 내놓는 대신 계산할 수 없다는 사실을 알린다.
+            throw new BusinessException(ErrorCode.AI_NO_CALCULABLE_CROP);
         }
         return RecommendPromptBuilder.hasUserRequest(request)
                 ? calculable
@@ -255,8 +259,9 @@ public class AiRecommendService {
     }
 
     private boolean isValidOutput(GeminiRecommendOutput output, Set<Long> validCropIds) {
+        // 하한이 1이다. 작물을 지정한 요청은 후보가 하나뿐이라 2개를 만들 방법이 없다.
         if (output == null || output.recommendedCrops() == null
-                || output.recommendedCrops().size() < 2 || output.recommendedCrops().size() > RECOMMEND_COUNT
+                || output.recommendedCrops().isEmpty() || output.recommendedCrops().size() > RECOMMEND_COUNT
                 || output.cautions() == null) {
             return false;
         }

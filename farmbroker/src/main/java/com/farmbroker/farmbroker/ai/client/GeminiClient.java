@@ -74,8 +74,10 @@ public class GeminiClient {
         Map<String, Object> responseSchema = Map.of(
                 "type", "object",
                 "properties", Map.of(
+                        // 작물을 지정한 요청은 그 작물 하나만 답하는 것이 맞다.
+                        // 최소 2개를 강제하면 유효 ID 가 하나뿐인 그 경로가 항상 검증에 걸린다.
                         "recommendedCrops", Map.of(
-                                "type", "array", "minItems", 2, "maxItems", 3,
+                                "type", "array", "minItems", 1, "maxItems", 3,
                                 "items", cropItemSchema),
                         "cautions", Map.of(
                                 "type", "array", "items", Map.of("type", "string"))

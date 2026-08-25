@@ -2,6 +2,8 @@ package com.farmbroker.farmbroker.ai.service;
 
 import com.farmbroker.farmbroker.ai.dto.AiRecommendRequest;
 import com.farmbroker.farmbroker.ai.prompt.RecommendPromptBuilder;
+import com.farmbroker.farmbroker.common.exception.BusinessException;
+import com.farmbroker.farmbroker.common.exception.ErrorCode;
 import com.farmbroker.farmbroker.crop.domain.Crop;
 import com.farmbroker.farmbroker.crop.domain.CropDifficulty;
 import com.farmbroker.farmbroker.crop.domain.LightRequirement;
@@ -14,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -92,14 +95,24 @@ class AiRecommendCandidateTest {
         assertThat(candidateNames(request("상추", null, null))).containsExactly("상추");
     }
 
-    // 응답 검증이 2~3개를 요구하므로, 계산 가능한 작물이 1개뿐이면 후보를 그것만 줄 수 없다.
+    // 모자란 자리를 계산 불가 작물로 채우면 이 제한이 그대로 깨진다(#138 리뷰).
     @Test
-    @DisplayName("계산 가능한 작물이 2개도 안 되면 백과사전 전체를 후보로 연다")
-    void falls_back_to_the_catalog_when_almost_nothing_is_calculable() {
+    @DisplayName("계산 가능한 작물이 하나뿐이면 그 하나만 후보로 준다")
+    void a_single_calculable_crop_stays_the_only_candidate() {
         List<Crop> candidates =
                 service.resolveCandidates(catalog(), ranking("딸기"), request(null, "수익형", null));
 
-        assertThat(candidates).hasSameSizeAs(CATALOG);
+        assertThat(candidates).extracting(Crop::getName).containsExactly("딸기");
+    }
+
+    // 금액 없는 추천을 내놓는 대신 계산할 수 없다는 사실을 알린다.
+    @Test
+    @DisplayName("계산 가능한 작물이 하나도 없으면 추천하지 않고 알린다")
+    void refuses_to_recommend_when_nothing_is_calculable() {
+        assertThatThrownBy(() -> service.resolveCandidates(catalog(), List.of(), request(null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(caught -> ((BusinessException) caught).getErrorCode())
+                .isEqualTo(ErrorCode.AI_NO_CALCULABLE_CROP);
     }
 
     // 요청 때문에 순서가 바뀐 자리는 화면이 "취향" 으로 구분해 보여줘야 한다.
