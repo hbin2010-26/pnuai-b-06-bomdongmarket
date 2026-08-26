@@ -20,7 +20,8 @@ public class AiRecommendResponse {
     private final Long recommendationId;
     @Schema(description = "추천 대상 공간 ID", example = "1")
     private final Long spaceId;
-    @Schema(description = "Gemini가 백과사전 후보 중 선택하고 서버가 검증한 작물 2~3개")
+    @Schema(description = "서버가 고른 후보 안에서 Gemini가 순서를 정하고 서버가 검증한 작물 목록. "
+            + "2~3개이며, 작물을 지정했거나 계산 가능한 작물이 하나뿐이면 1개")
     private final List<RecommendedCropItem> recommendedCrops;
     @Schema(description = "공간과 추천 작물에 따른 운영 주의사항")
     private final List<String> cautions;

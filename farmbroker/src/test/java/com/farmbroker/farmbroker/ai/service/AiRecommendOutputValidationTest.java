@@ -44,18 +44,33 @@ class AiRecommendOutputValidationTest {
         return service.isValidOutput(output(crops, List.of()), CANDIDATES);
     }
 
-    // ── 하한 ────────────────────────────────────────────────────────────────
+    // ── 하한은 후보 수를 따른다 ─────────────────────────────────────────────
+    //
+    // 고를 수 있는 작물이 하나뿐이면 1개가 정답이고, 둘 이상 있는데 하나만 답한 것은
+    // 프롬프트를 지키지 않은 응답이다. 하한을 어느 한쪽으로 고정하면 반대쪽이 깨진다 —
+    // 2로 고정했을 때는 작물 지정 경로가 늘 실패했고, 1로 고정했을 때는 자유 요청 경로에서
+    // 한 개짜리 답이 그대로 저장됐다(#138 리뷰).
 
     @Test
-    @DisplayName("작물 하나만 담은 응답도 통과한다")
-    void a_single_crop_answer_is_valid() {
-        assertThat(valid(List.of(item(1L, "이 공간에 맞습니다.")))).isTrue();
+    @DisplayName("후보가 하나뿐이면 하나만 담은 응답이 통과한다")
+    void a_single_crop_answer_is_valid_when_that_is_the_only_candidate() {
+        assertThat(service.isValidOutput(
+                output(List.of(item(1L, "이 공간에 맞습니다.")), List.of()), Set.of(1L)))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("후보가 둘 이상이면 하나만 담은 응답은 거절한다")
+    void a_single_crop_answer_is_rejected_when_more_candidates_exist() {
+        assertThat(valid(List.of(item(1L, "이 공간에 맞습니다.")))).isFalse();
+        assertThat(valid(List.of(item(1L, "근거"), item(2L, "근거")))).isTrue();
     }
 
     @Test
     @DisplayName("빈 응답은 거절한다")
     void an_empty_answer_is_rejected() {
         assertThat(valid(List.of())).isFalse();
+        assertThat(service.isValidOutput(output(List.of(), List.of()), Set.of(1L))).isFalse();
     }
 
     // ── 상한 ────────────────────────────────────────────────────────────────
@@ -87,23 +102,28 @@ class AiRecommendOutputValidationTest {
         assertThat(valid(List.of(item(1L, "근거"), item(99L, "근거")))).isFalse();
     }
 
+    // 아래 두 가지는 개수 게이트에 먼저 걸리지 않도록 후보 수를 채운 답으로 확인한다.
+    // 한 개짜리 답으로 검사하면 크기에서 걸려 거절되는 바람에, 정작 확인하려던 검사가
+    // 동작하는지 알 수 없다.
+
     @Test
     @DisplayName("작물 ID 가 없으면 거절한다")
     void a_missing_crop_id_is_rejected() {
-        assertThat(valid(List.of(item(null, "근거")))).isFalse();
+        assertThat(valid(List.of(item(1L, "근거"), item(null, "근거")))).isFalse();
     }
 
     @Test
     @DisplayName("근거가 비어 있으면 거절한다")
     void a_blank_reason_is_rejected() {
-        assertThat(valid(List.of(item(1L, "   ")))).isFalse();
-        assertThat(valid(List.of(item(1L, null)))).isFalse();
+        assertThat(valid(List.of(item(1L, "근거"), item(2L, "   ")))).isFalse();
+        assertThat(valid(List.of(item(1L, "근거"), item(2L, null)))).isFalse();
     }
 
     @Test
     @DisplayName("주의사항 목록이 아예 없으면 거절한다")
     void a_missing_cautions_list_is_rejected() {
-        assertThat(service.isValidOutput(output(List.of(item(1L, "근거")), null), CANDIDATES))
+        assertThat(service.isValidOutput(
+                output(List.of(item(1L, "근거"), item(2L, "근거")), null), CANDIDATES))
                 .isFalse();
         assertThat(service.isValidOutput(output(null, List.of()), CANDIDATES)).isFalse();
         assertThat(service.isValidOutput(null, CANDIDATES)).isFalse();

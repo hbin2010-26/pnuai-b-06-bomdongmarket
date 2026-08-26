@@ -61,6 +61,8 @@ public class AiRecommendService {
 
     // 화면에 버튼으로 놓을 추천 작물 수. 계산기 순위 상위 몇 개를 후보로 줄지도 이 값을 따른다.
     private static final int RECOMMEND_COUNT = 3;
+    // 고를 수 있는 작물이 이만큼 있으면 그만큼은 답해야 한다. 후보가 더 적으면 후보 수가 하한이다.
+    private static final int MIN_RECOMMEND_COUNT = 2;
 
     private final GeminiClient geminiClient;
     private final RecommendPromptBuilder promptBuilder;
@@ -295,10 +297,15 @@ public class AiRecommendService {
     }
 
     boolean isValidOutput(GeminiRecommendOutput output, Set<Long> validCropIds) {
-        // 하한이 1이다. 작물을 지정한 요청은 후보가 하나뿐이라 2개를 만들 방법이 없다.
-        if (output == null || output.recommendedCrops() == null
-                || output.recommendedCrops().isEmpty() || output.recommendedCrops().size() > RECOMMEND_COUNT
-                || output.cautions() == null) {
+        // 하한은 후보 수에서 끌어낸다. 고를 수 있는 작물이 하나뿐이면(작물을 지정했거나 계산
+        // 가능한 작물이 하나뿐인 경우) 1개가 정답이고, 둘 이상 있으면 하나만 답하는 것은
+        // 프롬프트를 지키지 않은 것이다 — 하한을 그냥 1로 두면 후자가 그대로 통과한다(#138 리뷰).
+        if (output == null || output.recommendedCrops() == null || output.cautions() == null) {
+            return false;
+        }
+        int minAnswers = Math.min(validCropIds.size(), MIN_RECOMMEND_COUNT);
+        if (output.recommendedCrops().size() < minAnswers
+                || output.recommendedCrops().size() > RECOMMEND_COUNT) {
             return false;
         }
         Set<Long> recommendedIds = output.recommendedCrops().stream()

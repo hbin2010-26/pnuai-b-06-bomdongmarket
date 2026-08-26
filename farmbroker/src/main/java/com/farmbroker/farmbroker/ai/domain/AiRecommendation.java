@@ -58,7 +58,7 @@ public class AiRecommendation {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // 추천 1건당 작물 2~3개 — display_order로 순서 보존, 저장은 cascade로 함께
+    // 추천 1건당 작물 2~3개(후보가 하나뿐이면 1개) — display_order로 순서 보존, 저장은 cascade로 함께
     @OneToMany(mappedBy = "recommendation", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<RecommendedCrop> recommendedCrops = new ArrayList<>();
