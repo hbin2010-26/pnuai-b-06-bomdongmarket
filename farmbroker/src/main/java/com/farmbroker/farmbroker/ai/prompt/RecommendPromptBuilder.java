@@ -11,15 +11,19 @@ import org.springframework.util.StringUtils;
 // 예전에는 "적합한 작물을 제안하세요" 한 줄이라 같은 공간을 두 번 실행해도 다른 작물이 나왔고,
 // 등록 화면(계산기)과 상세 화면(모델)이 서로 다른 작물을 내놓았다(#98).
 //
-// 모델이 순위를 벗어날 수 있는 자리는 "취향 추천" 한 칸뿐이다(#98 리뷰).
-// 그 한 칸은 수익이 아니라 난이도·재배기간·활용성으로 고르는 자리라, 계산기가 답할 수 없는
-// 질문에만 모델을 쓰고 수익 순위는 계산기 결과가 그대로 남는다.
+// 모델이 고를 수 있는 작물은 항상 "계산 가능한 작물"뿐이다. 그래야 추천된 작물에 금액이
+// 반드시 붙는다. 그 집합 안에서 사용자 요청이 있으면 순서를 다시 정할 수 있게 열어 둔다 —
+// 요청을 넣어도 결과가 그대로면 요청 칸을 둘 이유가 없다.
+//
+// 전에는 요청이 있을 때 백과사전 전체를 후보로 줘서, 모델이 계산기에 없는 작물을 고르면
+// 금액이 비어 있는 카드가 나왔다.
 //
 // 사용자 입력(additionalInfo 등)은 길이 제한(DTO 검증) + 프롬프트 하단 배치로 인젝션 영향 최소화.
 @Component
 public class RecommendPromptBuilder {
 
-    // 추천 항목이 어떤 기준으로 뽑혔는지. 화면이 "취향 추천" 배지를 붙이는 데 쓴다.
+    // 추천 항목이 어느 자리에 놓였는지. 서버가 배분수익 순위와 견줘 정하고 화면이 배지로 쓴다.
+    // 모델에게 묻지 않는다 — 자기가 왜 그 순서로 놨는지 스스로 신고하게 할 근거가 없다.
     public static final String PICK_PROFIT = "PROFIT";
     public static final String PICK_PREFERENCE = "PREFERENCE";
 
@@ -70,9 +74,8 @@ public class RecommendPromptBuilder {
                 - 기타 취향 및 요청사항: %s
 
                 반드시 아래 JSON 형식으로만 최종 응답하세요. 다른 텍스트를 포함하지 마세요.
-                pickType 은 계산기 순위에서 온 작물이면 "%s", 취향으로 고른 작물이면 "%s" 입니다.
                 {
-                  "recommendedCrops": [{"cropId": 1, "pickType": "%s", "reason": "..."}],
+                  "recommendedCrops": [{"cropId": 1, "reason": "..."}],
                   "cautions": ["..."]
                 }
                 """.formatted(
@@ -89,10 +92,7 @@ public class RecommendPromptBuilder {
                 cropCatalogJson,
                 orDefault(request.getPreferredCrop()),
                 orDefault(request.getPurpose()),
-                orDefault(request.getAdditionalInfo()),
-                PICK_PROFIT,
-                PICK_PREFERENCE,
-                PICK_PROFIT
+                orDefault(request.getAdditionalInfo())
         );
     }
 
@@ -102,27 +102,27 @@ public class RecommendPromptBuilder {
         //    사용자가 물어본 것에 답하지 않고 화제를 돌리는 셈이다(#98·#130 리뷰).
         if (StringUtils.hasText(request.getPreferredCrop())) {
             return """
-                    사용자가 작물을 지정했습니다. 지정한 작물 하나만 reason 을 쓰고 pickType 은 "%s" 입니다.
+                    사용자가 작물을 지정했습니다. 지정한 작물 하나만 reason 을 쓰세요.
                     다른 작물을 추천하거나 더 나은 작물을 제안하지 마세요.
                     그 작물이 이 공간에 불리하더라도 작물을 바꾸지 말고, 왜 불리한지를 reason 에 쓰고
-                    보완할 방법을 cautions 에 적으세요.""".formatted(PICK_PROFIT);
+                    보완할 방법을 cautions 에 적으세요.""";
         }
-        // 2) 아무 요청도 없으면 계산기 순위가 곧 답이다. 모델이 고를 여지를 두지 않는다.
-        if (!hasUserRequest(request)) {
+        // 2) 순서를 다시 정할 이유가 없으면 계산기 순위가 곧 답이다. 모델이 고를 여지를 두지 않는다.
+        //    목적만 고른 경우도 여기다 — 목적은 근거의 무게중심만 바꾼다.
+        if (!reordersRanking(request)) {
             return """
                     [서버 계산 결과]에 있는 작물 전부에 대해 그 순서대로 reason 을 쓰세요.
-                    pickType 은 모두 "%s" 입니다. 작물을 빼거나 더하거나 순서를 바꾸지 마세요.""".formatted(PICK_PROFIT);
+                    작물을 빼거나 더하거나 순서를 바꾸지 마세요.""";
         }
-        // 3) 작물 지정 없이 목적·요청만 온 경우. 순위는 그대로 두고 취향 추천 한 칸만 더한다.
+        // 3) 자유 요청이 온 경우. 계산 가능한 작물 안에서 순서를 다시 정하게 한다.
         return """
-                [서버 계산 결과] 상위 3개를 그 순서대로 쓰세요. pickType 은 "%s" 입니다.
-                순서를 바꾸거나 이 3개를 다른 작물로 교체하지 마세요.
+                [서버 계산 결과]에 있는 작물 중에서 [사용자 요청]에 가장 잘 맞는 3개를 골라
+                순서를 정하세요. 이 목록에 없는 작물은 고르지 마세요 — 금액을 계산할 수 없는 작물입니다.
 
-                그 뒤에 [사용자 요청]에 가장 잘 맞는 작물 1개를 [작물 백과사전 후보]에서 골라
-                마지막 항목으로 덧붙이세요. 이 항목의 pickType 은 "%s" 입니다.
-                수익이 아니라 난이도·재배기간·활용성으로 고르고, 왜 이 요청에 맞는지 reason 에 쓰세요.
-                이미 위 3개에 있는 작물이거나 요청에 맞는 작물이 없으면 이 항목은 넣지 마세요."""
-                .formatted(PICK_PROFIT, PICK_PREFERENCE);
+                요청과 관계가 없으면 [서버 계산 결과]의 순서를 그대로 두세요.
+                요청 때문에 배분수익 순위와 다른 자리에 놓은 작물은 앞으로 당긴 것이든 뒤로 미룬 것이든
+                왜 그 자리인지를 reason 첫 문장에 쓰세요. 그 작물이 적자라면 적자라는 사실도
+                같은 문장에서 밝히세요.""";
     }
 
     // 목적에 따라 근거의 무게중심이 달라진다. 같은 작물이라도 수익형과 취미형에 할 말이 다르다.
@@ -146,6 +146,15 @@ public class RecommendPromptBuilder {
         return StringUtils.hasText(request.getPreferredCrop())
                 || StringUtils.hasText(request.getPurpose())
                 || StringUtils.hasText(request.getAdditionalInfo());
+    }
+
+    // 계산기 순위를 다시 정렬해도 되는 요청인지.
+    //
+    // 목적(수익형/취미형)은 근거 문장의 무게중심만 바꾼다 — 순서를 여는 스위치가 아니다.
+    // hasUserRequest 를 그대로 쓰면 화면에서 라디오 하나만 눌러도 순위가 풀려서, "수익형"을
+    // 고른 사용자에게 배분수익 1~3위가 아닌 구성이 나올 수 있었다(#138 리뷰).
+    public static boolean reordersRanking(AiRecommendRequest request) {
+        return !picksSingleCrop(request) && StringUtils.hasText(request.getAdditionalInfo());
     }
 
     // 작물을 지정했으면 모델이 고를 것이 없다 — 후보도 그 작물 하나로 줄인다.

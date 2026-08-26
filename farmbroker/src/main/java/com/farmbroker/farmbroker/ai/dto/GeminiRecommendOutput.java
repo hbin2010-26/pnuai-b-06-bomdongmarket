@@ -13,9 +13,8 @@ public record GeminiRecommendOutput(
         List<String> cautions
 ) {
 
-    // pickType 은 이 작물이 계산기 순위에서 왔는지(PROFIT), 사용자 취향으로 골랐는지(PREFERENCE).
-    // 모델이 빠뜨리거나 엉뚱한 값을 넣을 수 있어 서버가 다시 정규화한다.
+    // 자리(pickType)는 서버가 배분수익 순위와 견줘 정하므로 모델에게 받지 않는다.
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record CropItem(Long cropId, String pickType, String reason) {
+    public record CropItem(Long cropId, String reason) {
     }
 }

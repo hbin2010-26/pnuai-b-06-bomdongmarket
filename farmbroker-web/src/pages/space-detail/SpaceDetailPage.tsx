@@ -23,6 +23,7 @@ export function SpaceDetailPage() {
     recommendation,
     status,
     recommendationStatus,
+    recommendationError,
     error,
     reload,
     loadRecommendation,
@@ -63,6 +64,7 @@ export function SpaceDetailPage() {
             <ProfitEstimateCard
               area={space.area}
               monthlyRent={space.monthlyRent}
+              errorMessage={recommendationError}
               onReset={clearRecommendation}
               onRun={(request) => requireAuth(() => void loadRecommendation(request))}
               recommendation={recommendation}

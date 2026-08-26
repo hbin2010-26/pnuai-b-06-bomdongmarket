@@ -34,7 +34,8 @@ public class AiRecommendController {
             summary = "작물 및 공간 활용 추천",
             description = """
                     공간 조건과 사용자 요청, 서버의 작물 백과사전 데이터를 Gemini 2.5 Flash에 한 번 전달하고
-                    JSON Schema로 제한된 추천 작물 2~3개, 추천 이유, 배치안, 주의사항을 반환합니다.
+                    JSON Schema로 제한된 추천 작물과 추천 이유, 주의사항을 반환합니다.
+                    작물 수는 2~3개이며, 작물을 지정했거나 수익을 계산할 수 있는 작물이 하나뿐이면 1개입니다.
 
                     모델은 백과사전에 존재하는 cropId만 선택하며 서버가 중복·존재 여부·필수 문구를 다시 검증합니다.
                     expectedYieldKg는 `㎡당 수확량 × 공간 면적`으로 서버가 계산하고,

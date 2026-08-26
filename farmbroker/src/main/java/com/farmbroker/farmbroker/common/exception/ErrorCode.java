@@ -68,6 +68,14 @@ public enum ErrorCode {
     AI_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AI 응답 시간이 초과되었습니다."),
     AI_RESPONSE_INVALID(HttpStatus.BAD_GATEWAY, "AI 응답 처리에 실패했습니다."),
     AI_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AI 요청 한도를 초과했습니다."),
+    // 추천은 계산 가능한 작물 안에서만 한다. 하나도 없으면 금액 없는 추천을 내놓기보다 그 사실을 알린다.
+    // 서버 장애가 아니라 데이터가 덜 채워진 상태라, 다른 상태 충돌과 같은 CONFLICT 로 둔다 —
+    // 503 은 클라이언트·프록시가 "서버가 죽었다"로 읽어 재시도 대상으로 볼 수 있다.
+    AI_NO_CALCULABLE_CROP(HttpStatus.CONFLICT,
+            "수익을 계산할 수 있는 작물이 없어 추천할 수 없습니다. 작물 재배 정보와 단가를 먼저 등록해 주세요."),
+    // 지정한 작물도 후보 제한을 지켜야 한다. 계산할 수 없는 작물을 통과시키면 금액 없는 추천이 나온다.
+    AI_CROP_NOT_CALCULABLE(HttpStatus.CONFLICT,
+            "선택한 작물은 재배 정보나 단가가 없어 수익을 계산할 수 없습니다."),
 
     // ── crop (소유: 백엔드 3) ────────────────────────────────────────────────
     CROP_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 작물입니다."),

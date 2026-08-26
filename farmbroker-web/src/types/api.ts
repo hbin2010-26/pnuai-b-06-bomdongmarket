@@ -211,8 +211,10 @@ export interface CropRecommendation {
   cropName: string;
   cropId: number | null;
   reason: string;
-  // 뽑힌 기준입니다. PROFIT=계산기 배분수익 순위, PREFERENCE=사용자 취향 기반 추천.
+  // 이 자리에 놓인 기준입니다. PROFIT=배분수익 순위 그대로, PREFERENCE=요청 때문에 순위와 다른 자리.
   pickType: 'PROFIT' | 'PREFERENCE';
+  // 배분수익 순위(1부터). 요청 때문에 순서가 바뀌었을 때 원래 수익 순위를 함께 보여줍니다.
+  profitRank: number | null;
   expectedYieldKg: number | null;
   avgPricePerKg: number | null;
   // 이 작물 기준 서버 계산값입니다. 추천 작물마다 따로 옵니다 —

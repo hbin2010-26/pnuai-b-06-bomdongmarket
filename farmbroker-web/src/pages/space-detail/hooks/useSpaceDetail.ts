@@ -10,6 +10,7 @@ export function useSpaceDetail(spaceId: number) {
   const [recommendation, setRecommendation] = useState<AiRecommendation | null>(null);
   const [status, setStatus] = useState<AsyncStatus>('idle');
   const [recommendationStatus, setRecommendationStatus] = useState<AsyncStatus>('idle');
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -31,12 +32,18 @@ export function useSpaceDetail(spaceId: number) {
   const loadRecommendation = useCallback(
     async (request: Omit<AiRecommendationInput, 'spaceId'> = {}) => {
       setRecommendationStatus('loading');
+      setRecommendationError(null);
 
       try {
         const result = await getRecommendation(spaceId, request);
         setRecommendation(result);
         setRecommendationStatus('success');
-      } catch {
+      } catch (caught) {
+        // 이유를 버리면 화면이 입력 폼으로 조용히 돌아가 사용자가 같은 버튼을 다시 누릅니다.
+        // "계산할 수 있는 작물이 없다"처럼 다시 눌러도 달라지지 않는 실패가 있어 이유를 남깁니다.
+        setRecommendationError(
+          caught instanceof Error ? caught.message : 'AI 추천을 실행하지 못했습니다.',
+        );
         setRecommendationStatus('error');
       }
     },
@@ -48,6 +55,7 @@ export function useSpaceDetail(spaceId: number) {
   const clearRecommendation = useCallback(() => {
     setRecommendation(null);
     setRecommendationStatus('idle');
+    setRecommendationError(null);
   }, []);
 
   useEffect(() => {
@@ -59,6 +67,7 @@ export function useSpaceDetail(spaceId: number) {
     recommendation,
     status,
     recommendationStatus,
+    recommendationError,
     error,
     reload: load,
     loadRecommendation,

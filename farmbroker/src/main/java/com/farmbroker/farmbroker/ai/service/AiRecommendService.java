@@ -61,6 +61,8 @@ public class AiRecommendService {
 
     // 화면에 버튼으로 놓을 추천 작물 수. 계산기 순위 상위 몇 개를 후보로 줄지도 이 값을 따른다.
     private static final int RECOMMEND_COUNT = 3;
+    // 고를 수 있는 작물이 이만큼 있으면 그만큼은 답해야 한다. 후보가 더 적으면 후보 수가 하한이다.
+    private static final int MIN_RECOMMEND_COUNT = 2;
 
     private final GeminiClient geminiClient;
     private final RecommendPromptBuilder promptBuilder;
@@ -88,9 +90,7 @@ public class AiRecommendService {
 
         // 배분수익 내림차순. 계산 가능한 작물이 없으면 비어 있을 수 있다.
         List<ProfitEstimate> ranking = rankCrops(space);
-        Map<String, ProfitEstimate> estimateByCropName = ranking.stream()
-                .collect(Collectors.toMap(ProfitEstimate::cropName, Function.identity(),
-                        (first, second) -> first, LinkedHashMap::new));
+        Map<String, ProfitEstimate> estimateByCropName = estimatesByCropName(ranking);
 
         List<Crop> candidates = resolveCandidates(crops, ranking, request);
         String prompt = promptBuilder.build(space, request,
@@ -108,9 +108,12 @@ public class AiRecommendService {
             throw e;
         }
 
-        List<GeminiRecommendOutput.CropItem> items = RecommendPromptBuilder.hasUserRequest(request)
-                ? output.recommendedCrops()
-                : alignToRanking(output.recommendedCrops(), candidates, estimateByCropName);
+        // 목적만 고른 경우는 순위를 그대로 둔다 — 목적은 근거의 무게중심만 바꾼다(#138 리뷰).
+        List<GeminiRecommendOutput.CropItem> items =
+                RecommendPromptBuilder.reordersRanking(request)
+                        || RecommendPromptBuilder.picksSingleCrop(request)
+                        ? output.recommendedCrops()
+                        : alignToRanking(output.recommendedCrops(), candidates, estimateByCropName);
 
         AiRecommendation recommendation = AiRecommendation.builder()
                 .space(entityManager.getReference(Space.class, space.getId()))
@@ -118,10 +121,11 @@ public class AiRecommendService {
                 .preferredCrop(request.getPreferredCrop())
                 .purpose(request.getPurpose())
                 .additionalInfo(request.getAdditionalInfo())
-                .cautionsJson(toJson(output.cautions()))
+                .cautionsJson(toJson(withDeficitWarning(output.cautions(), items, estimateByCropName)))
                 .model(geminiClient.getModel())
                 .build();
 
+        Map<String, Integer> profitRanks = profitRanks(ranking);
         int order = 0;
         for (GeminiRecommendOutput.CropItem item : items) {
             Crop crop = cropById.get(item.cropId());
@@ -129,17 +133,19 @@ public class AiRecommendService {
                     .crop(crop)
                     .cropName(crop.getName())
                     .reason(item.reason().trim())
-                    .displayOrder(order++)
-                    .pickType(pickType(item, estimateByCropName.containsKey(crop.getName())))
+                    .displayOrder(order)
+                    .pickType(pickType(order, profitRanks.get(crop.getName())))
                     .build());
+            order++;
         }
         aiRecommendationRepository.save(recommendation);
 
-        return new AiRecommendOutcome(toResponse(recommendation, space, estimateByCropName), false);
+        return new AiRecommendOutcome(toResponse(recommendation, space, ranking), false);
     }
 
     // 저장된 공간 면적·월세 + 표준 설비 가정값으로 계산기를 돌린다.
-    // 면적이 없으면 계산할 수 없으므로 빈 순위를 돌려주고, 그때는 백과사전 후보로 추천한다.
+    // 면적이 없으면 아무 작물도 계산할 수 없다. 빈 순위를 돌려주면 resolveCandidates 가
+    // AI_NO_CALCULABLE_CROP 으로 걸러낸다 — 금액 없는 추천을 내놓지 않기 위해서다.
     private List<ProfitEstimate> rankCrops(SpaceSummary space) {
         if (space.getArea() == null || space.getArea().doubleValue() <= 0) {
             return List.of();
@@ -150,49 +156,100 @@ public class AiRecommendService {
         return profitEstimateService.rank(inputs, null);
     }
 
-    // 작물을 지정했으면 그 작물 하나만 후보로 준다.
-    // 사용자 요청이 없으면 계산기 상위 3개만 후보로 준다 — 모델이 고를 여지를 없애 결과를 고정한다.
-    // 요청이 있거나 계산 가능한 작물이 2개도 안 되면 백과사전 전체를 후보로 준다.
-    private List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
-                                         AiRecommendRequest request) {
+    // 후보는 "계산 가능한 작물"(= 순위에 오른 작물)로만 준다. 그래야 추천된 작물에 금액이
+    // 반드시 붙는다. 전에는 요청이 있으면 백과사전 전체를 줘서 금액 없는 카드가 나왔다.
+    //
+    // 계산 가능한 작물이 하나뿐이어도 그 하나만 준다 — 모자란 자리를 계산 불가 작물로 채우면
+    // 이 PR 이 보장하려는 것이 그대로 깨진다(#138 리뷰). 하나도 없으면 호출 전에 걸러낸다.
+    //
+    // 작물을 지정했으면 그 하나만, 순서를 다시 정할 요청이 없으면 상위 3개만 준다 —
+    // 모델이 고를 여지를 없애 결과를 고정한다. 자유 요청이 있으면 계산 가능한 작물 전부를
+    // 주고 그 안에서 순서를 정하게 한다. 목적만 고른 경우는 순위를 열지 않는다.
+    // 후보 결정과 자리 판정은 추천 품질을 좌우하는데 서비스 전체를 띄우지 않고도 확인할 수 있어야 해서
+    // 패키지 범위로 둔다(AiRecommendCandidateTest).
+    List<Crop> resolveCandidates(List<Crop> crops, List<ProfitEstimate> ranking,
+                                 AiRecommendRequest request) {
         Map<String, Crop> cropByName = crops.stream()
                 .collect(Collectors.toMap(Crop::getName, Function.identity(), (first, second) -> first));
 
-        // 프롬프트로만 막으면 모델이 가끔 다른 작물을 끼워 넣는데, 후보를 줄이면 ID 검증에서 걸러진다.
-        // 이름이 목록에 없으면(직접 입력한 옛 데이터 등) 기존 흐름을 그대로 탄다.
-        if (RecommendPromptBuilder.picksSingleCrop(request)) {
-            Crop preferred = cropByName.get(request.getPreferredCrop().trim());
-            if (preferred != null) {
-                return List.of(preferred);
-            }
-        }
-
-        if (RecommendPromptBuilder.hasUserRequest(request)) {
-            return crops;
-        }
-        List<Crop> top = ranking.stream()
+        List<Crop> calculable = ranking.stream()
                 .map(estimate -> cropByName.get(estimate.cropName()))
                 .filter(Objects::nonNull)
-                .limit(RECOMMEND_COUNT)
                 .toList();
-        return top.size() >= 2 ? top : crops;
+
+        // 프롬프트로만 막으면 모델이 가끔 다른 작물을 끼워 넣는데, 후보를 줄이면 ID 검증에서 걸러진다.
+        // 지정 작물도 계산 가능해야 한다 — 백과사전에만 있는 작물을 통과시키면 응답 하한이 1이 된
+        // 지금은 금액 없는 추천이 그대로 성공한다(#138 리뷰).
+        if (RecommendPromptBuilder.picksSingleCrop(request)) {
+            String preferredName = request.getPreferredCrop().trim();
+            if (!cropByName.containsKey(preferredName)) {
+                throw new BusinessException(ErrorCode.CROP_NOT_FOUND);
+            }
+            return List.of(calculable.stream()
+                    .filter(crop -> crop.getName().equals(preferredName))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_CROP_NOT_CALCULABLE)));
+        }
+
+        if (calculable.isEmpty()) {
+            // 금액 없는 추천을 내놓는 대신 계산할 수 없다는 사실을 알린다.
+            throw new BusinessException(ErrorCode.AI_NO_CALCULABLE_CROP);
+        }
+        return RecommendPromptBuilder.reordersRanking(request)
+                ? calculable
+                : calculable.stream().limit(RECOMMEND_COUNT).toList();
     }
 
-    // 모델이 보낸 pickType 을 그대로 믿지 않는다. 값이 없거나 오타면 계산기 순위에 있는지로 정한다 —
-    // 순위 밖 작물에 PROFIT 이 붙으면 화면이 계산기가 고른 것처럼 보여 준다.
-    private String pickType(GeminiRecommendOutput.CropItem item, boolean inRanking) {
-        if (RecommendPromptBuilder.PICK_PREFERENCE.equals(item.pickType())) {
-            return RecommendPromptBuilder.PICK_PREFERENCE;
+    // pickType 은 모델이 보낸 값을 쓰지 않고 서버가 위치로 판정한다.
+    // 배분수익 순위와 같은 자리면 PROFIT, 요청 때문에 자리가 바뀌었으면 PREFERENCE 다.
+    // 모델에게 물으면 자기가 왜 그 순서로 놨는지를 스스로 신고해야 하는데, 그걸 믿을 근거가 없다.
+    String pickType(int displayOrder, Integer profitRank) {
+        return profitRank != null && profitRank == displayOrder + 1
+                ? RecommendPromptBuilder.PICK_PROFIT
+                : RecommendPromptBuilder.PICK_PREFERENCE;
+    }
+
+    // 1순위가 적자면 주의사항에 서버가 직접 한 줄 넣는다.
+    // 프롬프트로도 밝히게 하지만 모델이 빠뜨리면 서버가 잡을 방법이 없었다 — 요청 때문에 적자
+    // 작물이 앞으로 올 수 있게 열어 둔 만큼, 그 고지는 모델 말에 맡기지 않는다(#138 리뷰).
+    private List<String> withDeficitWarning(List<String> cautions,
+                                            List<GeminiRecommendOutput.CropItem> items,
+                                            Map<String, ProfitEstimate> estimateByCropName) {
+        List<String> safe = cautions != null ? new ArrayList<>(cautions) : new ArrayList<>();
+        if (items.isEmpty()) {
+            return safe;
         }
-        if (RecommendPromptBuilder.PICK_PROFIT.equals(item.pickType()) && inRanking) {
-            return RecommendPromptBuilder.PICK_PROFIT;
+        Crop first = cropRepository.findById(items.get(0).cropId()).orElse(null);
+        ProfitEstimate estimate = first != null ? estimateByCropName.get(first.getName()) : null;
+        if (estimate == null || estimate.landlordExpectedIncomeKrw() >= 0) {
+            return safe;
         }
-        return inRanking ? RecommendPromptBuilder.PICK_PROFIT : RecommendPromptBuilder.PICK_PREFERENCE;
+        safe.add(0, "%s 는 현재 입력값과 비용 구조에서는 적자입니다(공간 제공자 예상 배분수익 월 %,d원). 요청 조건에는 맞지만 수익만 보면 불리합니다."
+                .formatted(first.getName(), Math.round(estimate.landlordExpectedIncomeKrw())));
+        return safe;
+    }
+
+    // 작물명으로 계산값을 찾는 표. 순위 자체는 정렬된 리스트에서 따로 매긴다.
+    private static Map<String, ProfitEstimate> estimatesByCropName(List<ProfitEstimate> ranking) {
+        return ranking.stream()
+                .collect(Collectors.toMap(ProfitEstimate::cropName, Function.identity(),
+                        (first, second) -> first, LinkedHashMap::new));
+    }
+
+    // 배분수익 순위(1부터). 계산할 수 없는 작물이면 없다.
+    // 정렬된 리스트에서 직접 매긴다 — Map 의 순회 순서에 기대면 수집 방식이 바뀌는 순간 조용히 깨진다.
+    private static Map<String, Integer> profitRanks(List<ProfitEstimate> ranking) {
+        Map<String, Integer> ranks = new LinkedHashMap<>();
+        int rank = 1;
+        for (ProfitEstimate estimate : ranking) {
+            ranks.putIfAbsent(estimate.cropName(), rank++);
+        }
+        return ranks;
     }
 
     // 모델이 순서를 바꾸거나 하나를 빠뜨려도 화면에는 계산기 순위가 그대로 보이게 맞춘다.
     // 빠진 작물의 근거는 계산 결과로 서버가 채운다 — 없는 근거를 모델처럼 지어내지 않기 위해서다.
-    private List<GeminiRecommendOutput.CropItem> alignToRanking(
+    List<GeminiRecommendOutput.CropItem> alignToRanking(
             List<GeminiRecommendOutput.CropItem> generated, List<Crop> candidates,
             Map<String, ProfitEstimate> estimateByCropName) {
         Map<Long, String> reasonByCropId = generated.stream()
@@ -207,9 +264,7 @@ public class AiRecommendService {
                 reason = serverReason(estimateByCropName.get(crop.getName()));
                 log.warn("[AI 추천] 모델이 {} 의 근거를 빠뜨려 계산 결과로 대체했습니다.", crop.getName());
             }
-            // 요청이 없을 때만 오는 경로다 — 전부 계산기 순위에서 왔다.
-            aligned.add(new GeminiRecommendOutput.CropItem(
-                    crop.getId(), RecommendPromptBuilder.PICK_PROFIT, reason));
+            aligned.add(new GeminiRecommendOutput.CropItem(crop.getId(), reason));
         }
         return aligned;
     }
@@ -241,10 +296,16 @@ public class AiRecommendService {
         throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
     }
 
-    private boolean isValidOutput(GeminiRecommendOutput output, Set<Long> validCropIds) {
-        if (output == null || output.recommendedCrops() == null
-                || output.recommendedCrops().size() < 2 || output.recommendedCrops().size() > RECOMMEND_COUNT
-                || output.cautions() == null) {
+    boolean isValidOutput(GeminiRecommendOutput output, Set<Long> validCropIds) {
+        // 하한은 후보 수에서 끌어낸다. 고를 수 있는 작물이 하나뿐이면(작물을 지정했거나 계산
+        // 가능한 작물이 하나뿐인 경우) 1개가 정답이고, 둘 이상 있으면 하나만 답하는 것은
+        // 프롬프트를 지키지 않은 것이다 — 하한을 그냥 1로 두면 후자가 그대로 통과한다(#138 리뷰).
+        if (output == null || output.recommendedCrops() == null || output.cautions() == null) {
+            return false;
+        }
+        int minAnswers = Math.min(validCropIds.size(), MIN_RECOMMEND_COUNT);
+        if (output.recommendedCrops().size() < minAnswers
+                || output.recommendedCrops().size() > RECOMMEND_COUNT) {
             return false;
         }
         Set<Long> recommendedIds = output.recommendedCrops().stream()
@@ -319,25 +380,30 @@ public class AiRecommendService {
         if (errorCode != ErrorCode.AI_TIMEOUT && errorCode != ErrorCode.AI_QUOTA_EXCEEDED) {
             return null;
         }
-        Map<String, ProfitEstimate> estimateByCropName = rankCrops(space).stream()
-                .collect(Collectors.toMap(ProfitEstimate::cropName, Function.identity(),
-                        (first, second) -> first, LinkedHashMap::new));
+        // 저장된 추천을 다시 보여줄 때도 순위와 금액은 지금 기준으로 다시 계산한다.
+        List<ProfitEstimate> ranking = rankCrops(space);
         return aiRecommendationRepository.findTopBySpaceIdOrderByCreatedAtDesc(space.getId())
-                .map(saved -> new AiRecommendOutcome(toResponse(saved, space, estimateByCropName), true))
+                .map(saved -> new AiRecommendOutcome(toResponse(saved, space, ranking), true))
                 .orElse(null);
     }
 
     // 추천 작물마다 그 작물 기준 계산값을 함께 내린다.
     // 예전에는 대표 작물 하나만 계산해, 화면 상단에 로메인이 뜨는데 수익은 상추 기준인 일이 있었다(#98).
     private AiRecommendResponse toResponse(AiRecommendation recommendation, SpaceSummary space,
-                                           Map<String, ProfitEstimate> estimateByCropName) {
+                                           List<ProfitEstimate> ranking) {
+        Map<String, ProfitEstimate> estimateByCropName = estimatesByCropName(ranking);
+        Map<String, Integer> profitRanks = profitRanks(ranking);
         List<AiRecommendResponse.RecommendedCropItem> items = recommendation.getRecommendedCrops().stream()
                 .map(rc -> new AiRecommendResponse.RecommendedCropItem(
                         rc.getCropName(),
                         rc.getCrop() != null ? rc.getCrop().getId() : null,
                         rc.getReason(),
-                        // 이 열이 생기기 전에 저장된 추천은 값이 없다 — 계산기 순위로 읽는다.
-                        rc.getPickType() != null ? rc.getPickType() : RecommendPromptBuilder.PICK_PROFIT,
+                        // 저장된 pickType 을 쓰지 않고 지금 순위로 다시 판정한다. 과거 추천을
+                        // fallback 으로 돌려줄 때 그 사이 순위가 바뀌면 배지와 숫자가 어긋난다.
+                        pickType(rc.getDisplayOrder(), profitRanks.get(rc.getCropName())),
+                        // 요청 때문에 순서가 바뀌었을 때 화면이 "수익 N위"를 함께 보여줄 수 있어야
+                        // 사용자가 무엇 때문에 이 순서인지 안다.
+                        profitRanks.get(rc.getCropName()),
                         expectedYieldKg(rc.getCrop(), space.getArea()),
                         rc.getCrop() != null ? rc.getCrop().getAvgPricePerKg() : null,
                         toEstimateResponse(estimateByCropName.get(rc.getCropName()))
