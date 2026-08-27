@@ -75,9 +75,9 @@ describe('Header 신청 알림', () => {
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('부산대 앞 20평 상가 공실')).toBeInTheDocument();
     expect(within(dialog).getByText('수익')).toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: '자세히 보기' })).toHaveAttribute(
+    expect(within(dialog).getByRole('link', { name: '계약서' })).toHaveAttribute(
       'href',
-      '/spaces/1/apply',
+      '/matchings/20/contract',
     );
   });
 
