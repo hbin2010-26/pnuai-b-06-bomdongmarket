@@ -319,7 +319,7 @@ cd ../farmbroker
 
 ## 5. 소개 및 시연영상
 
-현재 저장소에는 소개 및 시연 영상 URL이 포함되어 있지 않습니다. 교육원 제출 후 부여받은 YouTube URL을 반영할 예정입니다.
+[지정과제-06-봄동마켓_(Farmbroker)_시연영상](https://youtu.be/aMEDf9XNApE?si=ZtIkD9Z3KHDK16DF)
 <br/>
 
 ## 6. 팀 소개
