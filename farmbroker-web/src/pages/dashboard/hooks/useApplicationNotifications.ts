@@ -9,24 +9,37 @@ import type { AsyncStatus } from '@/types/common';
 const POLL_INTERVAL_MS = 15000;
 
 // 배지는 "아직 안 본 신청"만 셉니다. 로그인 세션과 수명을 맞춰 sessionStorage에 둡니다.
-const SEEN_KEY = 'farmbroker.seenApplications';
+// 매칭 번호는 신청자와 공간 제공자가 함께 쓰므로 키를 사용자별로 나눕니다 — 한 탭에서
+// 계정을 바꾸면 앞 계정이 본 신청이 새 계정에서도 본 것으로 취급됩니다.
+function seenKey(userId: number | null): string {
+  return `farmbroker.seenApplications.${userId ?? 'anonymous'}`;
+}
 
-function readSeenIds(): number[] {
+function readSeenIds(userId: number | null): number[] {
   try {
-    return JSON.parse(window.sessionStorage.getItem(SEEN_KEY) ?? '[]') as number[];
+    return JSON.parse(window.sessionStorage.getItem(seenKey(userId)) ?? '[]') as number[];
   } catch {
     return [];
   }
 }
 
 // 로그인 사용자가 어느 화면에 있든 헤더에서 신청 알림을 확인할 수 있게 목록을 관리합니다.
-export function useApplicationNotifications(isEnabled: boolean, isOwner: boolean) {
+export function useApplicationNotifications(
+  isEnabled: boolean,
+  isOwner: boolean,
+  userId: number | null,
+) {
   const [receivedApplications, setReceivedApplications] = useState<MatchingRequest[]>([]);
   const [sentApplications, setSentApplications] = useState<ContractSummary[]>([]);
   const [status, setStatus] = useState<AsyncStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [seenIds, setSeenIds] = useState<number[]>(readSeenIds);
+  const [seenIds, setSeenIds] = useState<number[]>(() => readSeenIds(userId));
+
+  // 헤더는 로그인·로그아웃 사이에도 그대로 마운트돼 있어, 계정이 바뀌면 여기서 다시 읽습니다.
+  useEffect(() => {
+    setSeenIds(readSeenIds(userId));
+  }, [userId]);
 
   const load = useCallback(async () => {
     if (!isEnabled) return;
@@ -73,10 +86,10 @@ export function useApplicationNotifications(isEnabled: boolean, isOwner: boolean
   // 알림창을 열면 그때 보인 신청을 모두 본 것으로 칩니다. 지금 목록만 적어 둬
   // 지워지거나 끝난 신청의 번호가 계속 쌓이지 않습니다.
   const markAllSeen = useCallback(() => {
-    window.sessionStorage.setItem(SEEN_KEY, JSON.stringify(pendingIds));
+    window.sessionStorage.setItem(seenKey(userId), JSON.stringify(pendingIds));
     setSeenIds(pendingIds);
     // 목록이 그대로면 같은 배열이 유지돼 이 함수도 매 렌더 새로 만들어지지 않습니다.
-  }, [pendingIds]);
+  }, [pendingIds, userId]);
 
   const dismiss = useCallback(
     async (matchingId: number, direction: 'received' | 'sent') => {

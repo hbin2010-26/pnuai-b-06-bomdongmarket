@@ -19,7 +19,11 @@ export function Header() {
   const notifications = useDisclosure();
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const isOwner = hasRole(user, 'OWNER');
-  const notificationData = useApplicationNotifications(isAuthenticated, isOwner);
+  const notificationData = useApplicationNotifications(
+    isAuthenticated,
+    isOwner,
+    user?.userId ?? null,
+  );
   // 배지는 아직 확인하지 않은 신청 수입니다. 알림창을 열면 그 자리에서 초기화됩니다.
   const { unseenCount, markAllSeen } = notificationData;
 
