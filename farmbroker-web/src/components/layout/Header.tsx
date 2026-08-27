@@ -19,16 +19,13 @@ export function Header() {
   const notifications = useDisclosure();
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const isOwner = hasRole(user, 'OWNER');
-  const notificationData = useApplicationNotifications(isAuthenticated, isOwner);
-  const pendingCount =
-    (isOwner
-      ? notificationData.receivedApplications.filter(
-          (application) => application.status === 'REQUESTED',
-        ).length
-      : 0) +
-    notificationData.sentApplications.filter(
-      (application) => application.status === 'REQUESTED',
-    ).length;
+  const notificationData = useApplicationNotifications(
+    isAuthenticated,
+    isOwner,
+    user?.userId ?? null,
+  );
+  // 배지는 아직 확인하지 않은 신청 수입니다. 알림창을 열면 그 자리에서 초기화됩니다.
+  const { unseenCount, markAllSeen } = notificationData;
 
   return (
     <>
@@ -63,18 +60,21 @@ export function Header() {
               <>
                 <Button
                   aria-label={
-                    pendingCount > 0 ? `알림, 응답 대기 ${pendingCount}건` : '알림'
+                    unseenCount > 0 ? `알림, 응답 대기 ${unseenCount}건` : '알림'
                   }
                   className="relative h-9 w-9 px-0"
-                  onClick={notifications.open}
+                  onClick={() => {
+                    markAllSeen();
+                    notifications.open();
+                  }}
                   ref={notificationButtonRef}
                   size="sm"
                   variant="outline"
                 >
                   <Bell className="h-4 w-4" aria-hidden />
-                  {pendingCount > 0 ? (
+                  {unseenCount > 0 ? (
                     <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-feedback-danger px-1 text-xs font-bold text-content-inverse">
-                      {pendingCount > 99 ? '99+' : pendingCount}
+                      {unseenCount > 99 ? '99+' : unseenCount}
                     </span>
                   ) : null}
                 </Button>

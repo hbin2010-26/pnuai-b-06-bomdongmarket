@@ -246,8 +246,8 @@ export function ChatConversationPanel({
           <p className="truncate text-xs text-slate-500">{conversation.contextTitle}</p>
         </div>
         {/* 계약은 matchingId 로만 열 수 있어, 서버가 이 대화의 매칭을 함께 내려줍니다.
-            수락된 매칭이 있을 때만 노출합니다 — 그 전에는 쓸 내용이 없습니다. */}
-        {conversation.matchingId != null && conversation.matchingStatus === 'ACCEPTED' ? (
+            협의 중(REQUESTED)에도 조건을 맞춰 가는 화면이라 매칭이 있으면 항상 노출합니다. */}
+        {conversation.matchingId != null ? (
           <Link
             className={buttonStyles({ size: 'sm', variant: 'outline' })}
             to={ROUTES.contract(conversation.matchingId)}

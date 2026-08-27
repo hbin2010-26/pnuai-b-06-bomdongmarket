@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -89,5 +89,57 @@ describe('Header', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(notificationButton).toHaveFocus();
+  });
+});
+
+// "다 확인했다"는 뜻이므로, 한 번 열어 본 신청은 배지에서 빠져야 합니다.
+describe('Header 알림 배지', () => {
+  beforeEach(() => {
+    clearAuthSession();
+    window.sessionStorage.clear();
+  });
+
+  it('알림창을 열면 배지가 사라진다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 1,
+      email: 'owner@example.com',
+      nickname: '그린스페이스랩',
+      roles: ['OWNER'],
+    });
+    renderWithProviders(<Header />, { authenticated: true });
+
+    await user.click(await screen.findByRole('button', { name: '알림, 응답 대기 2건' }));
+
+    expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
+  });
+
+  // 매칭 번호는 신청자와 공간 제공자가 함께 쓴다. 한 탭에서 계정을 바꿨을 때
+  // 앞 계정이 본 신청 때문에 새 계정의 배지가 숨으면 안 된다.
+  it('같은 탭에서 계정을 바꾸면 앞 계정의 읽음 표시를 쓰지 않는다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 1,
+      email: 'owner@example.com',
+      nickname: '그린스페이스랩',
+      roles: ['OWNER'],
+    });
+    renderWithProviders(<Header />, { authenticated: true });
+
+    await user.click(await screen.findByRole('button', { name: '알림, 응답 대기 2건' }));
+    expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
+
+    act(() => {
+      saveAuthSession({
+        userId: 2,
+        email: 'other-owner@example.com',
+        nickname: '다른공간랩',
+        roles: ['OWNER'],
+      });
+    });
+
+    expect(
+      await screen.findByRole('button', { name: '알림, 응답 대기 2건' }),
+    ).toBeInTheDocument();
   });
 });

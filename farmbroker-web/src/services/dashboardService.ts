@@ -41,17 +41,34 @@ function sentToContract(matching: MyMatching): ContractSummary {
   };
 }
 
+// 서버의 받은 신청 응답에는 공간 대표 이미지·월세가 없어 내 공간 목록에서 채웁니다.
+function withSpaceSummary(
+  received: MatchingRequest[],
+  ownedSpaces: SpaceSummary[],
+): MatchingRequest[] {
+  const spacesById = new Map(ownedSpaces.map((space) => [space.spaceId, space]));
+  return received.map((matching) => {
+    const space = spacesById.get(matching.spaceId);
+    return {
+      ...matching,
+      spaceImageUrl: matching.spaceImageUrl ?? space?.imageUrl ?? null,
+      monthlyRent: matching.monthlyRent ?? space?.monthlyRent,
+    };
+  });
+}
+
 // 헤더 알림은 현재 페이지와 무관하게 필요한 신청 목록만 불러옵니다.
 export async function getApplicationNotifications(
   isOwner: boolean,
 ): Promise<ApplicationNotifications> {
-  const [received, sent] = await Promise.all([
+  const [ownedSpaces, received, sent] = await Promise.all([
+    isOwner ? getMySpaces() : Promise.resolve([]),
     isOwner ? getReceivedMatchings() : Promise.resolve([]),
     getSentMatchingNotifications(),
   ]);
 
   return {
-    receivedApplications: received,
+    receivedApplications: withSpaceSummary(received, ownedSpaces),
     sentApplications: sent
       .filter((matching) => matching.status !== 'CANCELED')
       .map(sentToContract),
@@ -107,15 +124,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     getMyMatchings(),
     getWishlist(),
   ]);
-  const spacesById = new Map(ownedSpaces.map((space) => [space.spaceId, space]));
-  const receivedApplications = received.map((matching) => {
-    const space = spacesById.get(matching.spaceId);
-    return {
-      ...matching,
-      spaceImageUrl: matching.spaceImageUrl ?? space?.imageUrl ?? null,
-      monthlyRent: matching.monthlyRent ?? space?.monthlyRent,
-    };
-  });
+  const receivedApplications = withSpaceSummary(received, ownedSpaces);
   const sentApplications = sent
     .filter((matching) => matching.status !== 'CANCELED')
     .map(sentToContract);
