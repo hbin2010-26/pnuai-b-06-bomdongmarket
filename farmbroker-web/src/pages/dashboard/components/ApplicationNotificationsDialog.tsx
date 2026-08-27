@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { type RefObject, useEffect, useId, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
@@ -106,6 +107,15 @@ export function ApplicationNotificationsDialog({
       returnFocusTarget?.focus();
     };
   }, [isOpen, onClose, returnFocusRef]);
+
+  // 카드의 링크로 다른 화면에 가면 모달이 그 위에 그대로 남습니다 — 경로가 바뀌면 닫습니다.
+  const { pathname } = useLocation();
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    if (isOpen) onClose();
+  }, [isOpen, onClose, pathname]);
 
   if (!isOpen) return null;
 
