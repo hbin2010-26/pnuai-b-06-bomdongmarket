@@ -91,3 +91,26 @@ describe('Header', () => {
     expect(notificationButton).toHaveFocus();
   });
 });
+
+// "다 확인했다"는 뜻이므로, 한 번 열어 본 신청은 배지에서 빠져야 합니다.
+describe('Header 알림 배지', () => {
+  beforeEach(() => {
+    clearAuthSession();
+    window.sessionStorage.removeItem('farmbroker.seenApplications');
+  });
+
+  it('알림창을 열면 배지가 사라진다', async () => {
+    const user = userEvent.setup();
+    saveAuthSession({
+      userId: 1,
+      email: 'owner@example.com',
+      nickname: '그린스페이스랩',
+      roles: ['OWNER'],
+    });
+    renderWithProviders(<Header />, { authenticated: true });
+
+    await user.click(await screen.findByRole('button', { name: '알림, 응답 대기 2건' }));
+
+    expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
+  });
+});
